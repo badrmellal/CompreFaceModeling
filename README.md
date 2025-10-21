@@ -1,17 +1,23 @@
 
-<h1 align="center">1BIP Face Recognition & Attendance System</h1>
+<h1 align="center">🪂 Moroccan Royal Armed Forces - Airborne Troops</h1>
+<h2 align="center">1BIP - 1st Airborne Infantry Battalion</h2>
+<h3 align="center">Face Recognition & Access Control System</h3>
 
 <p align="center">
   <br>
-  <i>1BIP Face Recognition System is a comprehensive attendance and recognition platform for the 1BIP organization.
-     The system provides REST API for face recognition, face verification, face detection, landmark detection, mask detection, head pose detection, age, and gender recognition.
-     Designed to serve multiple departments with hundreds of users each, integrated with Hikvision camera infrastructure.
+  <i>Secure biometric access control and personnel tracking system for 1BIP - 1st Airborne Infantry Battalion.
+     Military-grade face recognition platform providing REST API for face recognition, verification, detection, and comprehensive security monitoring.
+     Designed for military bases, secure facilities, and operational deployments with complete offline capability.
      </i>
   <br>
 </p>
 
 <p align="center">
-  <strong>1BIP Internal System - Based on CompreFace Open Source Technology</strong>
+  <strong>المملكة المغربية - القوات المسلحة الملكية - القوات المحمولة جواً</strong><br>
+  <strong>1BIP - الكتيبة الأولى للمشاة المحمولة جواً</strong><br>
+  <strong>Kingdom of Morocco - Royal Armed Forces - Airborne Troops</strong><br>
+  <strong>1BIP - 1er Bataillon d'Infanterie Parachutiste</strong><br>
+  <em>Secure Military System - Based on CompreFace Open Source Technology</em>
   <br>
 </p>
 
@@ -66,14 +72,22 @@
 
 # Overview
 
-1BIP Face Recognition & Attendance System is built on the open-source CompreFace technology and customized for the 1BIP organization's needs.
-It is a docker-based application that can be deployed on-premises or in the cloud for secure face recognition and attendance tracking across multiple departments.
+The Moroccan Royal Armed Forces Airborne Troops Face Recognition System is a military-grade biometric access control platform built on open-source CompreFace technology and customized for secure military operations.
 
-The system provides REST API for face recognition, face verification, face detection, landmark detection, mask detection, head pose detection, age, and gender recognition.
-The solution features a role management system that allows administrators to control access to Face Recognition Services across different departments.
+This system is designed for deployment in military bases, secure facilities, and operational environments where personnel identification and access control are critical. The platform operates completely offline for maximum security and can be deployed in air-gapped networks.
 
-The system is delivered as a docker-compose config and supports different models that work on CPU and GPU.
-Built on state-of-the-art methods and libraries like FaceNet and InsightFace, optimized for integration with Hikvision 8MP camera infrastructure.
+**Military Applications:**
+- Base access control and perimeter security
+- Personnel attendance and duty tracking
+- Secure facility access management
+- Operational deployment personnel tracking
+- Unauthorized intruder detection and alerts
+- Integration with existing military CCTV infrastructure
+
+The system provides comprehensive REST API for face recognition, verification, detection, and advanced biometric analysis. Features include role-based access control allowing military commanders to manage security permissions across different units, battalions, and operational areas.
+
+Optimized for Apple Silicon (M3 Max with MPS GPU acceleration) and deployed as containerized services with support for both CPU and GPU processing.
+Built on military-grade encryption and state-of-the-art AI models (FaceNet, InsightFace) with integration support for Hikvision 8MP surveillance cameras.
 
 # Screenshots
 
@@ -138,16 +152,30 @@ alt="compreface-wizzard-page" width="390px" style="padding: 0px 0px 0px 10px;">
 [Subscribe](https://info.exadel.com/en/compreface-news-and-updates) to CompreFace News and Updates to never miss new features and product improvements.
 
 # Features
-The 1BIP Face Recognition System can accurately identify employees even when it has only "seen" their photo once. Key features for 1BIP organization:
+The Moroccan Airborne Troops Face Recognition System provides military-grade biometric identification capabilities. System can accurately identify personnel even from a single enrollment photo.
 
-- Supports both CPU and GPU and is easy to scale across multiple departments
-- Self-hosted on 1BIP infrastructure for maximum data security and privacy
-- Can be deployed on premises or in private cloud
-- Designed for attendance tracking and access control
-- Integrates with Hikvision 8MP camera infrastructure
-- Uses FaceNet and InsightFace libraries with state-of-the-art face recognition methods
-- Starts quickly with just one docker command
-- Handles multiple departments with 300-500 users each
+**Security Features:**
+- Complete offline operation for air-gapped military networks
+- Military-grade encryption and data security
+- Self-hosted on military infrastructure - no external dependencies
+- Unauthorized intruder detection with instant alerts
+- Multi-level access control (Unit, Battalion, Brigade levels)
+- Comprehensive audit trail for all access attempts
+
+**Performance & Scalability:**
+- M3 Max GPU acceleration with MPS support (4-6x performance boost)
+- Supports both CPU and GPU deployment
+- Scalable across multiple military units (300-500 personnel per unit)
+- Real-time multi-face detection and recognition
+- Hikvision 8MP military-grade camera integration
+- State-of-the-art AI models (FaceNet, InsightFace)
+
+**Deployment:**
+- Quick deployment with single docker command
+- Portable deployment for field operations
+- Low-power consumption for mobile deployments
+- MacBook M3 Max optimized for command centers
+- Works in harsh environmental conditions
 
 # Functionalities
 

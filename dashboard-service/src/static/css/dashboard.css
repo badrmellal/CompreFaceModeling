@@ -1,19 +1,29 @@
-/* 1BIP Dashboard Styles - Completely Offline (No External Dependencies) */
+/* Moroccan Airborne Troops Dashboard - Military Theme */
+/* Completely Offline - No External Dependencies */
 
-/* ==================== CSS VARIABLES ==================== */
+/* ==================== CSS VARIABLES - MILITARY THEME ==================== */
 :root {
-    --primary-color: #2563eb;
-    --success-color: #10b981;
-    --danger-color: #ef4444;
-    --warning-color: #f59e0b;
-    --info-color: #3b82f6;
-    --bg-color: #f3f4f6;
-    --card-bg: #ffffff;
-    --text-color: #1f2937;
-    --text-muted: #6b7280;
-    --border-color: #e5e7eb;
-    --header-bg: #1e293b;
-    --header-text: #ffffff;
+    /* Military Color Palette */
+    --primary-color: #4a5928;        /* Military Olive Green */
+    --success-color: #2d5016;        /* Dark Military Green */
+    --danger-color: #8b0000;         /* Dark Military Red */
+    --warning-color: #d97706;        /* Military Amber */
+    --info-color: #1e40af;           /* Military Navy Blue */
+
+    /* Background Colors */
+    --bg-color: #e8e5da;             /* Military Tan/Beige */
+    --card-bg: #f5f3ed;              /* Light Military Tan */
+    --text-color: #1a1a1a;           /* Near Black */
+    --text-muted: #5a5346;           /* Military Brown */
+    --border-color: #c4bfab;         /* Light Military Brown */
+
+    /* Header Colors */
+    --header-bg: #2d3c1f;            /* Dark Olive */
+    --header-text: #f5f3ed;          /* Light Tan */
+
+    /* Moroccan Flag Colors (for accents) */
+    --morocco-red: #C1272D;          /* Moroccan Red */
+    --morocco-green: #006233;        /* Moroccan Green */
 }
 
 /* ==================== RESET & BASE STYLES ==================== */
@@ -53,8 +63,19 @@ body {
 }
 
 .header h1 {
-    font-size: 1.5rem;
-    font-weight: 600;
+    font-size: 1.4rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 0.25rem;
+}
+
+.header .subtitle {
+    font-size: 0.875rem;
+    font-weight: 400;
+    opacity: 0.9;
+    font-style: italic;
+    margin-top: 0.25rem;
 }
 
 .header-info {

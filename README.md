@@ -1,25 +1,7 @@
 
-<h1 align="center">🪂 Moroccan Royal Armed Forces - Airborne Troops</h1>
-<h2 align="center">1BIP - 1st Airborne Infantry Battalion</h2>
+
 <h3 align="center">Face Recognition & Access Control System</h3>
 
-<p align="center">
-  <br>
-  <i>Secure biometric access control and personnel tracking system for 1BIP - 1st Airborne Infantry Battalion.
-     Military-grade face recognition platform providing REST API for face recognition, verification, detection, and comprehensive security monitoring.
-     Designed for military bases, secure facilities, and operational deployments with complete offline capability.
-     </i>
-  <br>
-</p>
-
-<p align="center">
-  <strong>المملكة المغربية - القوات المسلحة الملكية - القوات المحمولة جواً</strong><br>
-  <strong>1BIP - الكتيبة الأولى للمشاة المحمولة جواً</strong><br>
-  <strong>Kingdom of Morocco - Royal Armed Forces - Airborne Troops</strong><br>
-  <strong>1BIP - 1er Bataillon d'Infanterie Parachutiste</strong><br>
-  <em>Secure Military System - Based on CompreFace Open Source Technology</em>
-  <br>
-</p>
 
 <p align="center">
   <a href="#contributing">Contributing</a>
@@ -72,19 +54,16 @@
 
 # Overview
 
-The Moroccan Royal Armed Forces Airborne Troops Face Recognition System is a military-grade biometric access control platform built on open-source CompreFace technology and customized for secure military operations.
 
-This system is designed for deployment in military bases, secure facilities, and operational environments where personnel identification and access control are critical. The platform operates completely offline for maximum security and can be deployed in air-gapped networks.
-
-**Military Applications:**
+** Applications:**
 - Base access control and perimeter security
 - Personnel attendance and duty tracking
 - Secure facility access management
 - Operational deployment personnel tracking
 - Unauthorized intruder detection and alerts
-- Integration with existing military CCTV infrastructure
+- Integration with existing CCTV infrastructure
 
-The system provides comprehensive REST API for face recognition, verification, detection, and advanced biometric analysis. Features include role-based access control allowing military commanders to manage security permissions across different units, battalions, and operational areas.
+
 
 Optimized for Apple Silicon (M3 Max with MPS GPU acceleration) and deployed as containerized services with support for both CPU and GPU processing.
 Built on military-grade encryption and state-of-the-art AI models (FaceNet, InsightFace) with integration support for Hikvision 8MP surveillance cameras.
@@ -152,30 +131,9 @@ alt="compreface-wizzard-page" width="390px" style="padding: 0px 0px 0px 10px;">
 [Subscribe](https://info.exadel.com/en/compreface-news-and-updates) to CompreFace News and Updates to never miss new features and product improvements.
 
 # Features
-The Moroccan Airborne Troops Face Recognition System provides military-grade biometric identification capabilities. System can accurately identify personnel even from a single enrollment photo.
+The Face Recognition System provides biometric identification capabilities. System can accurately identify personnel even from a single enrollment photo.
 
-**Security Features:**
-- Complete offline operation for air-gapped military networks
-- Military-grade encryption and data security
-- Self-hosted on military infrastructure - no external dependencies
-- Unauthorized intruder detection with instant alerts
-- Multi-level access control (Unit, Battalion, Brigade levels)
-- Comprehensive audit trail for all access attempts
 
-**Performance & Scalability:**
-- M3 Max GPU acceleration with MPS support (4-6x performance boost)
-- Supports both CPU and GPU deployment
-- Scalable across multiple military units (300-500 personnel per unit)
-- Real-time multi-face detection and recognition
-- Hikvision 8MP military-grade camera integration
-- State-of-the-art AI models (FaceNet, InsightFace)
-
-**Deployment:**
-- Quick deployment with single docker command
-- Portable deployment for field operations
-- Low-power consumption for mobile deployments
-- MacBook M3 Max optimized for command centers
-- Works in harsh environmental conditions
 
 # Functionalities
 
@@ -229,23 +187,7 @@ Follow this [link](/dev)
 | Python     | https://github.com/exadel-inc/compreface-python-sdk     |
 | .NET       | https://github.com/exadel-inc/compreface-net-sdk        |
 
-# Documentation
 
-More documentation is available [here](/docs)
-
-# Contributing
-
-We want to improve our open-source face recognition solution, so your contributions are welcome and greatly appreciated. 
-
-* Just use CompreFace and [report](https://github.com/exadel-inc/CompreFace/issues) ideas and bugs on GitHub
-* Share knowledge and experience via posting guides and articles, or just improve our [documentation](https://github.com/exadel-inc/CompreFace/tree/master/docs)
-* Create [SDKs](https://github.com/topics/compreface-sdk) for favorite programming language, we will add it to our documentation
-* Integrate CompreFace support to other platforms like [Home Assistant](https://www.home-assistant.io/) or [DreamFactory](https://www.dreamfactory.com/), we will add it to our documentation
-* [Contribute](CONTRIBUTING.md) code
-* Add [plugin](/docs/Face-services-and-plugins.md#face-plugins) to face services
-* And last, but not least, you can just give a star to our free facial recognition system on GitHub
-
-For more information, visit our [contributing](CONTRIBUTING.md) guide, or create a [discussion](https://github.com/exadel-inc/CompreFace/discussions).
 
 # License info 
 

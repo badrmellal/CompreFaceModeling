@@ -1,19 +1,17 @@
 
-<h1 align="center">Exadel CompreFace is a leading free and open-source face recognition system</h1>
+<h1 align="center">1BIP Face Recognition & Attendance System</h1>
 
 <p align="center">
-    <a target="_blank" href="https://exadel.com/solutions/compreface/">
-  <img src="https://user-images.githubusercontent.com/3736126/147130206-17234c47-8d40-490f-8d93-57014fa6d87e.png" alt="angular-logo" height="250px"/>
- </a>
   <br>
-  <i>Exadel CompreFace is a free and open-source face recognition service that can be easily integrated into any system without prior machine learning skills. 
-     CompreFace provides REST API for face recognition, face verification, face detection, landmark detection, mask detection, head pose detection, age, and gender recognition and is easily deployed with docker.
+  <i>1BIP Face Recognition System is a comprehensive attendance and recognition platform for the 1BIP organization.
+     The system provides REST API for face recognition, face verification, face detection, landmark detection, mask detection, head pose detection, age, and gender recognition.
+     Designed to serve multiple departments with hundreds of users each, integrated with Hikvision camera infrastructure.
      </i>
   <br>
 </p>
 
 <p align="center">
-  <a href="https://exadel.com/solutions/compreface/"><strong>Official website</strong></a>
+  <strong>1BIP Internal System - Based on CompreFace Open Source Technology</strong>
   <br>
 </p>
 
@@ -68,15 +66,14 @@
 
 # Overview
 
-Exadel CompreFace is a free and open-source face recognition GitHub project. 
-Essentially, it is a docker-based application that can be used as a standalone server or deployed in the cloud. 
-You don’t need prior machine learning skills to set up and use CompreFace.
+1BIP Face Recognition & Attendance System is built on the open-source CompreFace technology and customized for the 1BIP organization's needs.
+It is a docker-based application that can be deployed on-premises or in the cloud for secure face recognition and attendance tracking across multiple departments.
 
-The system provides REST API for face recognition, face verification, face detection, landmark detection, mask detection, head pose detection, age, and gender recognition. 
-The solution also features a role management system that allows you to easily control who has access to your Face Recognition Services.
+The system provides REST API for face recognition, face verification, face detection, landmark detection, mask detection, head pose detection, age, and gender recognition.
+The solution features a role management system that allows administrators to control access to Face Recognition Services across different departments.
 
-CompreFace is delivered as a docker-compose config and supports different models that work on CPU and GPU. 
-Our solution is based on state-of-the-art methods and libraries like FaceNet and InsightFace.
+The system is delivered as a docker-compose config and supports different models that work on CPU and GPU.
+Built on state-of-the-art methods and libraries like FaceNet and InsightFace, optimized for integration with Hikvision 8MP camera infrastructure.
 
 # Screenshots
 
@@ -141,14 +138,16 @@ alt="compreface-wizzard-page" width="390px" style="padding: 0px 0px 0px 10px;">
 [Subscribe](https://info.exadel.com/en/compreface-news-and-updates) to CompreFace News and Updates to never miss new features and product improvements.
 
 # Features
-The system can accurately identify people even when it has only “seen” their photo once. Technology-wise, CompreFace has several advantages over similar free face recognition solutions. CompreFace:
+The 1BIP Face Recognition System can accurately identify employees even when it has only "seen" their photo once. Key features for 1BIP organization:
 
-- Supports both CPU and GPU and is easy to scale up
-- Is open source and self-hosted, which gives you additional guarantees for data security
-- Can be deployed either in the cloud or on premises
-- Can be set up and used without machine learning expertise
-- Uses FaceNet and InsightFace libraries, which use state-of-the-art face recognition methods
+- Supports both CPU and GPU and is easy to scale across multiple departments
+- Self-hosted on 1BIP infrastructure for maximum data security and privacy
+- Can be deployed on premises or in private cloud
+- Designed for attendance tracking and access control
+- Integrates with Hikvision 8MP camera infrastructure
+- Uses FaceNet and InsightFace libraries with state-of-the-art face recognition methods
 - Starts quickly with just one docker command
+- Handles multiple departments with 300-500 users each
 
 # Functionalities
 

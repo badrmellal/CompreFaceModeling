@@ -1,10 +1,11 @@
 
 <h1 align="center">🪂 Moroccan Royal Armed Forces - Airborne Troops</h1>
-<h2 align="center">Face Recognition & Access Control System</h2>
+<h2 align="center">1BIP - 1st Airborne Infantry Battalion</h2>
+<h3 align="center">Face Recognition & Access Control System</h3>
 
 <p align="center">
   <br>
-  <i>Secure biometric access control and personnel tracking system for the Moroccan Airborne Troops.
+  <i>Secure biometric access control and personnel tracking system for 1BIP - 1st Airborne Infantry Battalion.
      Military-grade face recognition platform providing REST API for face recognition, verification, detection, and comprehensive security monitoring.
      Designed for military bases, secure facilities, and operational deployments with complete offline capability.
      </i>
@@ -13,7 +14,9 @@
 
 <p align="center">
   <strong>المملكة المغربية - القوات المسلحة الملكية - القوات المحمولة جواً</strong><br>
+  <strong>1BIP - الكتيبة الأولى للمشاة المحمولة جواً</strong><br>
   <strong>Kingdom of Morocco - Royal Armed Forces - Airborne Troops</strong><br>
+  <strong>1BIP - 1er Bataillon d'Infanterie Parachutiste</strong><br>
   <em>Secure Military System - Based on CompreFace Open Source Technology</em>
   <br>
 </p>

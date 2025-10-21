@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>1BIP Face Recognition Dashboard</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="container">
+            <div class="header-content">
+                <h1>🏢 1BIP Face Recognition & Attendance System</h1>
+                <div class="header-info">
+                    <span id="currentTime" class="time">--:--:--</span>
+                    <span class="status-indicator" id="systemStatus">
+                        <span class="status-dot online"></span> System Online
+                    </span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <div class="container">
+        <!-- Summary Statistics Cards -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon">👥</div>
+                <div class="stat-content">
+                    <h3 class="stat-value" id="totalToday">0</h3>
+                    <p class="stat-label">Total Access Today</p>
+                </div>
+            </div>
+
+            <div class="stat-card success">
+                <div class="stat-icon">✅</div>
+                <div class="stat-content">
+                    <h3 class="stat-value" id="authorizedToday">0</h3>
+                    <p class="stat-label">Authorized</p>
+                </div>
+            </div>
+
+            <div class="stat-card danger">
+                <div class="stat-icon">⚠️</div>
+                <div class="stat-content">
+                    <h3 class="stat-value" id="unauthorizedToday">0</h3>
+                    <p class="stat-label">Unauthorized Attempts</p>
+                </div>
+            </div>
+
+            <div class="stat-card info">
+                <div class="stat-icon">👨‍💼</div>
+                <div class="stat-content">
+                    <h3 class="stat-value" id="uniqueEmployees">0</h3>
+                    <p class="stat-label">Unique Employees</p>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon">📹</div>
+                <div class="stat-content">
+                    <h3 class="stat-value" id="activeCameras">0</h3>
+                    <p class="stat-label">Active Cameras</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab Navigation -->
+        <div class="tabs">
+            <button class="tab-btn active" data-tab="live">🔴 Live Monitor</button>
+            <button class="tab-btn" data-tab="attendance">📋 Attendance</button>
+            <button class="tab-btn" data-tab="unauthorized">⚠️ Unauthorized Access</button>
+            <button class="tab-btn" data-tab="cameras">📹 Camera Status</button>
+            <button class="tab-btn" data-tab="reports">📊 Reports</button>
+        </div>
+
+        <!-- Tab Content -->
+        <div class="tab-content active" id="tab-live">
+            <h2>Live Access Monitor</h2>
+            <div class="controls">
+                <button class="btn btn-primary" onclick="refreshLiveMonitor()">🔄 Refresh</button>
+                <label>
+                    Auto-refresh:
+                    <input type="checkbox" id="autoRefresh" checked>
+                    <span id="refreshCountdown"></span>
+                </label>
+            </div>
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Camera</th>
+                            <th>Person</th>
+                            <th>Status</th>
+                            <th>Confidence</th>
+                            <th>Alert</th>
+                        </tr>
+                    </thead>
+                    <tbody id="liveAccessTable">
+                        <tr>
+                            <td colspan="6" class="loading">Loading data...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="tab-content" id="tab-attendance">
+            <h2>Today's Attendance</h2>
+            <div class="controls">
+                <button class="btn btn-primary" onclick="refreshAttendance()">🔄 Refresh</button>
+                <button class="btn btn-secondary" onclick="exportAttendance()">📥 Export CSV</button>
+            </div>
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Employee</th>
+                            <th>First Entry</th>
+                            <th>Last Entry</th>
+                            <th>Total Entries</th>
+                            <th>Camera</th>
+                            <th>Avg Confidence</th>
+                        </tr>
+                    </thead>
+                    <tbody id="attendanceTable">
+                        <tr>
+                            <td colspan="6" class="loading">Loading attendance data...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="tab-content" id="tab-unauthorized">
+            <h2>Unauthorized Access Attempts</h2>
+            <div class="controls">
+                <label>
+                    Time Range:
+                    <select id="unauthorizedHours" onchange="refreshUnauthorized()">
+                        <option value="1">Last Hour</option>
+                        <option value="6">Last 6 Hours</option>
+                        <option value="24" selected>Last 24 Hours</option>
+                        <option value="168">Last Week</option>
+                    </select>
+                </label>
+                <button class="btn btn-primary" onclick="refreshUnauthorized()">🔄 Refresh</button>
+            </div>
+            <div id="unauthorizedCount" class="alert-count"></div>
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Timestamp</th>
+                            <th>Camera</th>
+                            <th>Location</th>
+                            <th>Detected As</th>
+                            <th>Alert Sent</th>
+                        </tr>
+                    </thead>
+                    <tbody id="unauthorizedTable">
+                        <tr>
+                            <td colspan="5" class="loading">Loading unauthorized access data...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="tab-content" id="tab-cameras">
+            <h2>Camera Status</h2>
+            <div class="controls">
+                <button class="btn btn-primary" onclick="refreshCameraStatus()">🔄 Refresh</button>
+            </div>
+            <div class="camera-grid" id="cameraGrid">
+                <div class="loading">Loading camera status...</div>
+            </div>
+        </div>
+
+        <div class="tab-content" id="tab-reports">
+            <h2>Reports & Analytics</h2>
+            <div class="report-section">
+                <h3>Attendance Report</h3>
+                <div class="controls">
+                    <label>
+                        Start Date:
+                        <input type="date" id="reportStartDate">
+                    </label>
+                    <label>
+                        End Date:
+                        <input type="date" id="reportEndDate">
+                    </label>
+                    <button class="btn btn-primary" onclick="generateReport()">📊 Generate Report</button>
+                    <button class="btn btn-secondary" onclick="exportReport()">📥 Export CSV</button>
+                </div>
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Employee</th>
+                                <th>First Entry</th>
+                                <th>Last Entry</th>
+                                <th>Entries Count</th>
+                            </tr>
+                        </thead>
+                        <tbody id="reportTable">
+                            <tr>
+                                <td colspan="5" class="empty">Select date range and click "Generate Report"</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="report-section">
+                <h3>Hourly Activity Chart</h3>
+                <div id="hourlyChart" class="chart-container">
+                    <canvas id="activityChart" width="800" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <p>© 2025 1BIP Organization | Face Recognition & Attendance System | Last Updated: <span id="lastUpdate">--:--:--</span></p>
+        </div>
+    </footer>
+
+    <!-- JavaScript -->
+    <script src="/static/js/dashboard.js"></script>
+</body>
+</html>

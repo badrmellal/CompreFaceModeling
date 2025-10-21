@@ -103,4 +103,27 @@ services:
       - default
     # Uncomment if you need to access camera service from host
     # ports:
-    #   - "5000:5000"
+    #   - "5001:5000"
+
+  # 1BIP Dashboard Service
+  # Real-time monitoring interface for access control and attendance
+  dashboard-service:
+    build:
+      context: ./dashboard-service
+      dockerfile: Dockerfile
+    container_name: "1bip-dashboard"
+    restart: unless-stopped
+    depends_on:
+      - compreface-postgres-db
+    ports:
+      - "5000:5000"
+    environment:
+      - DB_HOST=compreface-postgres-db
+      - DB_PORT=5432
+      - DB_NAME=${postgres_db}
+      - DB_USER=${postgres_username}
+      - DB_PASSWORD=${postgres_password}
+      - DASHBOARD_PORT=5000
+      - FLASK_DEBUG=false
+    networks:
+      - default

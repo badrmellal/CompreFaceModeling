@@ -83,3 +83,24 @@ services:
       retries: 0
       start_period: 0s
       timeout: 1s
+
+  # 1BIP Camera Integration Service
+  # Hikvision camera integration for face recognition and access control
+  camera-service:
+    build:
+      context: ./camera-service
+      dockerfile: Dockerfile
+    container_name: "1bip-camera-service"
+    restart: unless-stopped
+    depends_on:
+      - compreface-api
+      - compreface-postgres-db
+    env_file:
+      - ./camera-service/config/camera_config.env
+    volumes:
+      - ./camera-service/logs:/app/logs
+    networks:
+      - default
+    # Uncomment if you need to access camera service from host
+    # ports:
+    #   - "5000:5000"

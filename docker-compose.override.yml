@@ -1,0 +1,34 @@
+# Docker Compose Override pour M3 Max ARM64
+# Ce fichier désactive compreface-core qui ne fonctionne pas avec émulation AMD64
+#
+# Les autres services fonctionnent:
+# - Interface UI CompreFace ✅
+# - Base de données ✅
+# - API Admin ✅
+# - Dashboard 1BIP ✅
+#
+# Limitation: La reconnaissance faciale ne fonctionnera pas
+# Solution permanente: Utiliser un serveur Linux/Intel ou builder en ARM64 natif
+
+services:
+  # Désactiver compreface-core (service bloqué sur ARM64)
+  compreface-core:
+    profiles:
+      - disabled
+    restart: "no"
+
+  # Modifier compreface-api pour ne pas dépendre de core
+  compreface-api:
+    environment:
+      - SPRING_PROFILES_ACTIVE=dev
+      - POSTGRES_USER=${postgres_username}
+      - POSTGRES_PASSWORD=${postgres_password}
+      - POSTGRES_URL=jdbc:postgresql://${postgres_domain}:${postgres_port}/${postgres_db}
+      - API_JAVA_OPTS=${compreface_api_java_options}
+      - SAVE_IMAGES_TO_DB=${save_images_to_db}
+      - MAX_FILE_SIZE=${max_file_size}
+      - MAX_REQUEST_SIZE=${max_request_size}B
+      - CONNECTION_TIMEOUT=${connection_timeout:-10000}
+      - READ_TIMEOUT=${read_timeout:-60000}
+      # Désactiver l'attente de compreface-core
+      - ML_API_URL=http://localhost:3000

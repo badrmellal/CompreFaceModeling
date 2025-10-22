@@ -82,10 +82,10 @@ services:
       - UWSGI_THREADS=${uwsgi_threads:-1}
     healthcheck:
       test: curl --fail http://localhost:3000/healthcheck || exit 1
-      interval: 10s
-      retries: 0
-      start_period: 0s
-      timeout: 1s
+      interval: 15s
+      retries: 5
+      start_period: 180s  # 3 minutes pour charger les modèles ML sur M3 Max
+      timeout: 10s
 
   # 1BIP Camera Integration Service
   # Hikvision camera integration for face recognition and access control

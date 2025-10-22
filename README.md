@@ -1,23 +1,23 @@
 
-<h1 align="center">🪂 Moroccan Royal Armed Forces - Airborne Troops</h1>
-<h2 align="center">1BIP - 1st Airborne Infantry Battalion</h2>
-<h3 align="center">Face Recognition & Access Control System</h3>
+<h1 align="center">🪂 Forces Armées Royales Marocaines - Troupes Aéroportées</h1>
+<h2 align="center">1BIP - 1ère Brigade d'Infanterie Parachutiste</h2>
+<h3 align="center">Système de Reconnaissance Faciale et Contrôle d'Accès</h3>
 
 <p align="center">
   <br>
-  <i>Secure biometric access control and personnel tracking system for 1BIP - 1st Airborne Infantry Battalion.
-     Military-grade face recognition platform providing REST API for face recognition, verification, detection, and comprehensive security monitoring.
-     Designed for military bases, secure facilities, and operational deployments with complete offline capability.
+  <i>Système sécurisé de contrôle d'accès biométrique et de suivi du personnel pour la 1BIP - 1ère Brigade d'Infanterie Parachutiste.
+     Plateforme de reconnaissance faciale de niveau militaire fournissant une API REST pour la reconnaissance, la vérification, la détection faciale et la surveillance de sécurité complète.
+     Conçu pour les bases militaires, les installations sécurisées et les déploiements opérationnels avec capacité hors ligne complète.
      </i>
   <br>
 </p>
 
 <p align="center">
   <strong>المملكة المغربية - القوات المسلحة الملكية - القوات المحمولة جواً</strong><br>
-  <strong>1BIP - الكتيبة الأولى للمشاة المحمولة جواً</strong><br>
-  <strong>Kingdom of Morocco - Royal Armed Forces - Airborne Troops</strong><br>
-  <strong>1BIP - 1er Bataillon d'Infanterie Parachutiste</strong><br>
-  <em>Secure Military System - Based on CompreFace Open Source Technology</em>
+  <strong>1BIP - اللواء الأول للمشاة المحمولة جواً</strong><br>
+  <strong>Royaume du Maroc - Forces Armées Royales - Troupes Aéroportées</strong><br>
+  <strong>1BIP - 1ère Brigade d'Infanterie Parachutiste</strong><br>
+  <em>Système Militaire Sécurisé - Basé sur la Technologie Open Source CompreFace</em>
   <br>
 </p>
 
@@ -72,22 +72,22 @@
 
 # Overview
 
-The Moroccan Royal Armed Forces Airborne Troops Face Recognition System is a military-grade biometric access control platform built on open-source CompreFace technology and customized for secure military operations.
+Le Système de Reconnaissance Faciale des Troupes Aéroportées des Forces Armées Royales Marocaines est une plateforme de contrôle d'accès biométrique de niveau militaire construite sur la technologie open-source CompreFace et personnalisée pour les opérations militaires sécurisées.
 
-This system is designed for deployment in military bases, secure facilities, and operational environments where personnel identification and access control are critical. The platform operates completely offline for maximum security and can be deployed in air-gapped networks.
+Ce système est conçu pour le déploiement dans les bases militaires, les installations sécurisées et les environnements opérationnels où l'identification du personnel et le contrôle d'accès sont critiques. La plateforme fonctionne entièrement hors ligne pour une sécurité maximale et peut être déployée dans des réseaux isolés (air-gapped).
 
-**Military Applications:**
-- Base access control and perimeter security
-- Personnel attendance and duty tracking
-- Secure facility access management
-- Operational deployment personnel tracking
-- Unauthorized intruder detection and alerts
-- Integration with existing military CCTV infrastructure
+**Applications Militaires:**
+- Contrôle d'accès aux bases et sécurité périmétrique
+- Suivi de présence et de service du personnel
+- Gestion d'accès aux installations sécurisées
+- Suivi du personnel en déploiement opérationnel
+- Détection et alertes d'intrusion non autorisée
+- Intégration avec l'infrastructure CCTV militaire existante
 
-The system provides comprehensive REST API for face recognition, verification, detection, and advanced biometric analysis. Features include role-based access control allowing military commanders to manage security permissions across different units, battalions, and operational areas.
+Le système fournit une API REST complète pour la reconnaissance faciale, la vérification, la détection et l'analyse biométrique avancée. Les fonctionnalités incluent un contrôle d'accès basé sur les rôles permettant aux commandants militaires de gérer les permissions de sécurité à travers différentes unités, brigades et zones opérationnelles.
 
-Optimized for Apple Silicon (M3 Max with MPS GPU acceleration) and deployed as containerized services with support for both CPU and GPU processing.
-Built on military-grade encryption and state-of-the-art AI models (FaceNet, InsightFace) with integration support for Hikvision 8MP surveillance cameras.
+Optimisé pour Apple Silicon (M3 Max avec accélération GPU MPS) et déployé en tant que services conteneurisés avec support pour le traitement CPU et GPU.
+Construit sur un chiffrement de niveau militaire et des modèles d'IA de pointe (FaceNet, InsightFace) avec support d'intégration pour les caméras de surveillance Hikvision 8MP.
 
 # Screenshots
 
@@ -151,31 +151,31 @@ alt="compreface-wizzard-page" width="390px" style="padding: 0px 0px 0px 10px;">
 
 [Subscribe](https://info.exadel.com/en/compreface-news-and-updates) to CompreFace News and Updates to never miss new features and product improvements.
 
-# Features
-The Moroccan Airborne Troops Face Recognition System provides military-grade biometric identification capabilities. System can accurately identify personnel even from a single enrollment photo.
+# Fonctionnalités
+Le Système de Reconnaissance Faciale des Troupes Aéroportées Marocaines offre des capacités d'identification biométrique de niveau militaire. Le système peut identifier avec précision le personnel même à partir d'une seule photo d'enrôlement.
 
-**Security Features:**
-- Complete offline operation for air-gapped military networks
-- Military-grade encryption and data security
-- Self-hosted on military infrastructure - no external dependencies
-- Unauthorized intruder detection with instant alerts
-- Multi-level access control (Unit, Battalion, Brigade levels)
-- Comprehensive audit trail for all access attempts
+**Fonctionnalités de Sécurité:**
+- Fonctionnement hors ligne complet pour réseaux militaires isolés
+- Chiffrement et sécurité des données de niveau militaire
+- Auto-hébergé sur infrastructure militaire - aucune dépendance externe
+- Détection d'intrus non autorisés avec alertes instantanées
+- Contrôle d'accès multi-niveaux (Unité, Brigade, Division)
+- Piste d'audit complète pour toutes les tentatives d'accès
 
-**Performance & Scalability:**
-- M3 Max GPU acceleration with MPS support (4-6x performance boost)
-- Supports both CPU and GPU deployment
-- Scalable across multiple military units (300-500 personnel per unit)
-- Real-time multi-face detection and recognition
-- Hikvision 8MP military-grade camera integration
-- State-of-the-art AI models (FaceNet, InsightFace)
+**Performance & Évolutivité:**
+- Accélération GPU M3 Max avec support MPS (boost de performance 4-6x)
+- Support déploiement CPU et GPU
+- Évolutif pour plusieurs unités militaires (300-500 personnes par unité)
+- Détection et reconnaissance multi-visages en temps réel
+- Intégration caméras Hikvision 8MP de niveau militaire
+- Modèles d'IA de pointe (FaceNet, InsightFace)
 
-**Deployment:**
-- Quick deployment with single docker command
-- Portable deployment for field operations
-- Low-power consumption for mobile deployments
-- MacBook M3 Max optimized for command centers
-- Works in harsh environmental conditions
+**Déploiement:**
+- Déploiement rapide avec une seule commande docker
+- Déploiement portable pour opérations sur le terrain
+- Faible consommation d'énergie pour déploiements mobiles
+- MacBook M3 Max optimisé pour centres de commande
+- Fonctionne dans des conditions environnementales difficiles
 
 # Functionalities
 

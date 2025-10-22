@@ -56,7 +56,7 @@ class Config:
     ENABLE_ALERTS = os.getenv('ENABLE_ALERTS', 'true').lower() == 'true'
     ALERT_WEBHOOK_URL = os.getenv('ALERT_WEBHOOK_URL', '')
     ALERT_EMAIL = os.getenv('ALERT_EMAIL', '')
-    COOLDOWN_SECONDS = int(os.getenv('ALERT_COOLDOWN_SECONDS', '60'))  # Don't spam alerts
+    COOLDOWN_SECONDS = int(os.getenv('ALERT_COOLDOWN_SECONDS', '10'))  # Don't spam alerts
 
     # Database Configuration
     DB_HOST = os.getenv('DB_HOST', 'compreface-postgres-db')

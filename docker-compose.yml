@@ -80,6 +80,8 @@ services:
       - IMG_LENGTH_LIMIT=${max_detect_size}
       - UWSGI_PROCESSES=${uwsgi_processes:-1}
       - UWSGI_THREADS=${uwsgi_threads:-2}
+      - PYTHONUNBUFFERED=1
+      - PYTHONVERBOSE=1
     # Healthcheck désactivé temporairement pour debugging M3 Max
     # healthcheck:
     #   test: curl --fail http://localhost:3000/healthcheck || exit 1

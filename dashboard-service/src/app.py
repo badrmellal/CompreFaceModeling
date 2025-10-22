@@ -31,9 +31,9 @@ app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', '1bip-dashboard-secret-key-ch
 DB_CONFIG = {
     'host': os.getenv('DB_HOST', 'compreface-postgres-db'),
     'port': int(os.getenv('DB_PORT', '5432')),
-    'database': os.getenv('DB_NAME', 'frs_1bip'),
+    'database': os.getenv('DB_NAME', 'morocco_1bip_frs'),
     'user': os.getenv('DB_USER', 'postgres'),
-    'password': os.getenv('DB_PASSWORD', '1BIP_SecurePassword_2025')
+    'password': os.getenv('DB_PASSWORD', 'Morocco_Airborne_Secure2025!')
 }
 
 

@@ -78,14 +78,15 @@ services:
     environment:
       - ML_PORT=3000
       - IMG_LENGTH_LIMIT=${max_detect_size}
-      - UWSGI_PROCESSES=${uwsgi_processes:-2}
-      - UWSGI_THREADS=${uwsgi_threads:-1}
-    healthcheck:
-      test: curl --fail http://localhost:3000/healthcheck || exit 1
-      interval: 15s
-      retries: 5
-      start_period: 180s  # 3 minutes pour charger les modèles ML sur M3 Max
-      timeout: 10s
+      - UWSGI_PROCESSES=${uwsgi_processes:-1}
+      - UWSGI_THREADS=${uwsgi_threads:-2}
+    # Healthcheck désactivé temporairement pour debugging M3 Max
+    # healthcheck:
+    #   test: curl --fail http://localhost:3000/healthcheck || exit 1
+    #   interval: 30s
+    #   retries: 10
+    #   start_period: 300s  # 5 minutes pour M3 Max ARM64 émulation
+    #   timeout: 15s
 
   # 1BIP Camera Integration Service
   # Hikvision camera integration for face recognition and access control

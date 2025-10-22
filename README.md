@@ -58,8 +58,8 @@
 
 
 
-Optimized for Apple Silicon (M3 Max with MPS GPU acceleration) and deployed as containerized services with support for both CPU and GPU processing.
-Built on military-grade encryption and state-of-the-art AI models (FaceNet, InsightFace) with integration support for Hikvision 8MP surveillance cameras.
+Optimisé pour Apple Silicon (M3 Max avec accélération GPU MPS) et déployé en tant que services conteneurisés avec support pour le traitement CPU et GPU.
+Construit sur un chiffrement de niveau militaire et des modèles d'IA de pointe (FaceNet, InsightFace) avec support d'intégration pour les caméras de surveillance Hikvision 8MP.
 
 # Screenshots
 

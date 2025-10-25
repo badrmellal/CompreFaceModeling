@@ -373,10 +373,56 @@ class CameraService:
         self.recognition_service = FaceRecognitionService(config)
         self.running = False
         self.frame_count = 0
+        self.latest_frame = None  # Store latest frame for streaming
+        self.frame_lock = threading.Lock()
 
         # Create debug image directory if enabled
         if self.config.SAVE_DEBUG_IMAGES:
             os.makedirs(self.config.DEBUG_IMAGE_PATH, exist_ok=True)
+            # Start cleanup thread
+            self.cleanup_thread = threading.Thread(target=self.cleanup_old_images_loop, daemon=True)
+            self.cleanup_thread.start()
+
+    def cleanup_old_images(self, days: int = 5):
+        """Delete images older than specified days"""
+        if not self.config.SAVE_DEBUG_IMAGES:
+            return
+
+        try:
+            now = time.time()
+            cutoff_time = now - (days * 24 * 60 * 60)  # Convert days to seconds
+            deleted_count = 0
+
+            for filename in os.listdir(self.config.DEBUG_IMAGE_PATH):
+                if not filename.endswith(('.jpg', '.jpeg', '.png')):
+                    continue
+
+                filepath = os.path.join(self.config.DEBUG_IMAGE_PATH, filename)
+
+                # Check file modification time
+                if os.path.getmtime(filepath) < cutoff_time:
+                    try:
+                        os.remove(filepath)
+                        deleted_count += 1
+                        logger.info(f"Deleted old image: {filename}")
+                    except Exception as e:
+                        logger.error(f"Failed to delete {filename}: {e}")
+
+            if deleted_count > 0:
+                logger.info(f"Cleanup: Deleted {deleted_count} image(s) older than {days} days")
+
+        except Exception as e:
+            logger.error(f"Cleanup failed: {e}")
+
+    def cleanup_old_images_loop(self):
+        """Run cleanup every 6 hours"""
+        while True:
+            try:
+                time.sleep(6 * 60 * 60)  # 6 hours
+                logger.info("Running scheduled image cleanup...")
+                self.cleanup_old_images(days=5)
+            except Exception as e:
+                logger.error(f"Error in cleanup loop: {e}")
 
     def connect_camera(self) -> Optional[cv2.VideoCapture]:
         """Connect to Hikvision camera via RTSP"""
@@ -441,6 +487,9 @@ class CameraService:
         authorized_faces, unauthorized_faces = \
             self.recognition_service.process_recognition_results(results)
 
+        # Draw boxes on frame FIRST (so we can save annotated images)
+        annotated_frame = self.draw_face_boxes(frame.copy(), authorized_faces, unauthorized_faces)
+
         # Log authorized access
         for face in authorized_faces:
             self.db_manager.log_access(
@@ -460,11 +509,15 @@ class CameraService:
         for face in unauthorized_faces:
             image_path = None
 
-            # Save debug image if enabled
+            # Save annotated image with face boxes for unauthorized access
             if self.config.SAVE_DEBUG_IMAGES:
                 timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-                image_path = f"{self.config.DEBUG_IMAGE_PATH}/unauthorized_{timestamp}.jpg"
-                cv2.imwrite(image_path, frame)
+                filename = f"unauthorized_{timestamp}.jpg"
+                image_path = f"{self.config.DEBUG_IMAGE_PATH}/{filename}"
+
+                # Save the ANNOTATED frame (with red boxes and labels)
+                cv2.imwrite(image_path, annotated_frame)
+                logger.info(f"Saved unauthorized access image: {filename}")
 
             log_id = self.db_manager.log_access(
                 camera_name=self.config.CAMERA_NAME,
@@ -474,7 +527,7 @@ class CameraService:
                 similarity=face.get('similarity'),
                 face_box=face['box'],
                 alert_sent=False,
-                image_path=image_path,
+                image_path=filename if image_path else None,  # Store just filename
                 metadata={'reason': face.get('reason')}
             )
 
@@ -498,9 +551,6 @@ class CameraService:
                         self.db_manager.connection.commit()
                 except Exception as e:
                     logger.error(f"Failed to update alert status: {e}")
-
-        # Draw boxes on frame
-        annotated_frame = self.draw_face_boxes(frame, authorized_faces, unauthorized_faces)
 
         return annotated_frame
 
@@ -541,10 +591,18 @@ class CameraService:
                     logger.info(f"Processing frame #{self.frame_count}")
                     processed_frame = self.process_frame(frame)
 
+                    # Store latest frame for streaming
+                    with self.frame_lock:
+                        self.latest_frame = processed_frame
+
                     # Optional: Display frame (for debugging)
                     # cv2.imshow('1BIP Camera Service', processed_frame)
                     # if cv2.waitKey(1) & 0xFF == ord('q'):
                     #     break
+                else:
+                    # For non-processed frames, just store for streaming
+                    with self.frame_lock:
+                        self.latest_frame = frame
 
             except KeyboardInterrupt:
                 logger.info("Received shutdown signal")
@@ -571,6 +629,13 @@ def main():
         return
 
     service = CameraService(config)
+
+    # Start video streaming server in separate thread
+    from stream_server import StreamServer
+    stream_server = StreamServer(service, port=5001)
+    stream_thread = threading.Thread(target=stream_server.run, daemon=True)
+    stream_thread.start()
+    logger.info("Video streaming server started on port 5001")
 
     try:
         service.run()

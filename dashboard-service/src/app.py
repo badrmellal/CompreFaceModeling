@@ -460,6 +460,99 @@ def serve_static(filename):
 
 
 # ============================================
+# CAPTURED IMAGES (from camera service)
+# ============================================
+
+@app.route('/api/images/<path:filename>')
+def serve_captured_image(filename):
+    """Serve captured images from camera service"""
+    try:
+        camera_logs_path = os.getenv('CAMERA_LOGS_PATH', '/app/camera_logs')
+        image_path = os.path.join(camera_logs_path, 'debug_images', filename)
+
+        if os.path.exists(image_path):
+            return send_from_directory(
+                os.path.join(camera_logs_path, 'debug_images'),
+                filename,
+                mimetype='image/jpeg'
+            )
+        else:
+            logger.warning(f"Image not found: {image_path}")
+            # Return placeholder image
+            return jsonify({'error': 'Image not found'}), 404
+    except Exception as e:
+        logger.error(f"Error serving image {filename}: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/images/latest')
+def get_latest_images():
+    """Get list of latest captured images with pagination (unauthorized access only)"""
+    try:
+        # Get pagination parameters
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 20, type=int)
+
+        # Limit per_page to prevent abuse
+        per_page = min(per_page, 100)
+
+        camera_logs_path = os.getenv('CAMERA_LOGS_PATH', '/app/camera_logs')
+        debug_images_path = os.path.join(camera_logs_path, 'debug_images')
+
+        if not os.path.exists(debug_images_path):
+            return jsonify({
+                'images': [],
+                'total': 0,
+                'page': page,
+                'per_page': per_page,
+                'total_pages': 0
+            })
+
+        # Get all UNAUTHORIZED images only (filter by filename prefix)
+        images = []
+        for filename in os.listdir(debug_images_path):
+            # Only include images starting with "unauthorized_"
+            if filename.startswith('unauthorized_') and filename.endswith(('.jpg', '.jpeg', '.png')):
+                filepath = os.path.join(debug_images_path, filename)
+                mtime = os.path.getmtime(filepath)
+                images.append({
+                    'filename': filename,
+                    'timestamp': mtime,
+                    'url': f'/api/images/{filename}'
+                })
+
+        # Sort by timestamp (newest first)
+        images.sort(key=lambda x: x['timestamp'], reverse=True)
+
+        # Calculate pagination
+        total = len(images)
+        total_pages = (total + per_page - 1) // per_page  # Ceiling division
+        start_idx = (page - 1) * per_page
+        end_idx = start_idx + per_page
+
+        # Get page slice
+        page_images = images[start_idx:end_idx]
+
+        return jsonify({
+            'images': page_images,
+            'total': total,
+            'page': page,
+            'per_page': per_page,
+            'total_pages': total_pages
+        })
+    except Exception as e:
+        logger.error(f"Error getting latest images: {e}")
+        return jsonify({
+            'error': str(e),
+            'images': [],
+            'total': 0,
+            'page': 1,
+            'per_page': per_page,
+            'total_pages': 0
+        }), 500
+
+
+# ============================================
 # ERROR HANDLERS
 # ============================================
 

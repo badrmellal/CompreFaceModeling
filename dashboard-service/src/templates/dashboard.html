@@ -83,6 +83,25 @@
         <!-- Contenu des Onglets -->
         <div class="tab-content active" id="tab-live">
             <h2>Moniteur de Sécurité en Direct - Contrôle d'Accès en Temps Réel</h2>
+
+            <!-- Section Flux Vidéo en Direct -->
+            <div class="live-stream-section">
+                <h3>📹 Flux Vidéo en Direct - Caméra de Sécurité</h3>
+                <div class="video-container" id="liveVideoContainer">
+                    <div class="video-placeholder" id="videoPlaceholder">
+                        <div style="text-align: center;">
+                            <div style="font-size: 3rem; margin-bottom: 1rem;">📹</div>
+                            <div>Flux vidéo en direct non disponible</div>
+                            <div style="font-size: 0.9rem; margin-top: 0.5rem; color: #666;">
+                                Le streaming en direct sera disponible prochainement
+                            </div>
+                        </div>
+                    </div>
+                    <!-- L'image MJPEG sera injectée ici par JavaScript si disponible -->
+                    <img id="liveVideoStream" class="video-stream" style="display: none;" alt="Flux vidéo en direct" />
+                </div>
+            </div>
+
             <div class="controls">
                 <button class="btn btn-primary" onclick="refreshLiveMonitor()">🔄 Actualiser</button>
                 <label>
@@ -171,6 +190,18 @@
                         </tr>
                     </tbody>
                 </table>
+            </div>
+
+            <!-- Section Galerie d'Images Capturées -->
+            <div class="captured-images-section">
+                <h3>📸 Images Capturées des Détections</h3>
+                <div class="controls">
+                    <button class="btn btn-primary" onclick="refreshCapturedImages()">🔄 Actualiser Images</button>
+                    <span id="imageCount" class="image-count"></span>
+                </div>
+                <div id="capturedImagesGrid" class="image-grid">
+                    <div class="loading">Chargement des images capturées...</div>
+                </div>
             </div>
         </div>
 

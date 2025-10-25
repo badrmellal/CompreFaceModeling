@@ -6,6 +6,8 @@ const CONFIG = {
     API_BASE_URL: '',  // Same origin
     REFRESH_INTERVAL: 10000,  // 10 seconds
     COUNTDOWN_INTERVAL: 1000, // 1 second
+    VIDEO_STREAM_URL: '',  // Will be set dynamically based on current host
+    IMAGES_PER_PAGE: 20,
 };
 
 // ==================== STATE ====================
@@ -13,16 +15,25 @@ let refreshTimer = null;
 let countdownTimer = null;
 let countdownSeconds = 10;
 let currentTab = 'live';
+let currentImagePage = 1;
+let totalImagePages = 1;
 
 // ==================== INITIALIZATION ====================
 document.addEventListener('DOMContentLoaded', function() {
     console.log('1BIP Dashboard initializing...');
+
+    // Set video stream URL based on current host
+    const currentHost = window.location.hostname;
+    CONFIG.VIDEO_STREAM_URL = `http://${currentHost}:5001/stream/video.mjpeg`;
 
     // Initialize tabs
     initializeTabs();
 
     // Initialize date inputs with today's date
     initializeDateInputs();
+
+    // Initialize video stream
+    initializeVideoStream();
 
     // Start clock
     updateClock();
@@ -83,6 +94,7 @@ function loadTabData(tabName) {
             break;
         case 'unauthorized':
             refreshUnauthorized();
+            refreshCapturedImages();
             break;
         case 'cameras':
             refreshCameraStatus();
@@ -241,6 +253,147 @@ async function refreshUnauthorized() {
         console.error('Error loading unauthorized access:', error);
         tableBody.innerHTML = '<tr><td colspan="5" class="empty">Error loading data</td></tr>';
     }
+}
+
+// ==================== CAPTURED IMAGES ====================
+async function refreshCapturedImages(page = 1) {
+    const imageGrid = document.getElementById('capturedImagesGrid');
+    const imageCount = document.getElementById('imageCount');
+
+    currentImagePage = page;
+    imageGrid.innerHTML = '<div class="loading">Chargement des images capturées...</div>';
+
+    try {
+        const response = await fetch(
+            `${CONFIG.API_BASE_URL}/api/images/latest?page=${page}&per_page=${CONFIG.IMAGES_PER_PAGE}`
+        );
+        if (!response.ok) throw new Error('Failed to fetch images');
+
+        const data = await response.json();
+        const images = data.images || [];
+        const total = data.total || 0;
+        totalImagePages = data.total_pages || 1;
+
+        imageCount.textContent = `${total} image(s) d'accès non autorisé trouvée(s)`;
+
+        if (images.length === 0) {
+            imageGrid.innerHTML = '<div class="empty">Aucune image d\'accès non autorisé trouvée</div>';
+            return;
+        }
+
+        // Build images grid
+        let gridHTML = images.map(img => {
+            const date = new Date(img.timestamp * 1000);
+            const timeStr = date.toLocaleString('fr-FR', {
+                day: '2-digit',
+                month: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+
+            return `
+                <div class="image-card" onclick="viewFullImage('${img.url}', '${escapeHtml(img.filename)}')">
+                    <div class="image-wrapper">
+                        <img src="${img.url}" alt="${escapeHtml(img.filename)}" loading="lazy" />
+                    </div>
+                    <div class="image-info">
+                        <div class="image-filename">${escapeHtml(img.filename)}</div>
+                        <div class="image-timestamp">🕒 ${timeStr}</div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        // Add pagination controls if needed
+        if (totalImagePages > 1) {
+            gridHTML += `
+                <div class="pagination-controls">
+                    <button class="btn btn-secondary" ${page <= 1 ? 'disabled' : ''}
+                            onclick="refreshCapturedImages(${page - 1})">
+                        ◀ Précédent
+                    </button>
+                    <span class="pagination-info">
+                        Page ${page} sur ${totalImagePages}
+                    </span>
+                    <button class="btn btn-secondary" ${page >= totalImagePages ? 'disabled' : ''}
+                            onclick="refreshCapturedImages(${page + 1})">
+                        Suivant ▶
+                    </button>
+                </div>
+            `;
+        }
+
+        imageGrid.innerHTML = gridHTML;
+
+    } catch (error) {
+        console.error('Error loading captured images:', error);
+        imageGrid.innerHTML = '<div class="empty">Erreur lors du chargement des images</div>';
+        imageCount.textContent = 'Erreur';
+    }
+}
+
+function viewFullImage(url, filename) {
+    // Create modal overlay
+    const modal = document.createElement('div');
+    modal.className = 'image-modal';
+    modal.innerHTML = `
+        <div class="image-modal-content">
+            <div class="image-modal-header">
+                <h3>📸 ${escapeHtml(filename)}</h3>
+                <button class="image-modal-close" onclick="closeImageModal()">&times;</button>
+            </div>
+            <div class="image-modal-body">
+                <img src="${url}" alt="${escapeHtml(filename)}" />
+            </div>
+            <div class="image-modal-footer">
+                <button class="btn btn-secondary" onclick="closeImageModal()">Fermer</button>
+                <a href="${url}" download="${filename}" class="btn btn-primary">📥 Télécharger</a>
+            </div>
+        </div>
+    `;
+
+    modal.onclick = function(e) {
+        if (e.target === modal) {
+            closeImageModal();
+        }
+    };
+
+    document.body.appendChild(modal);
+    document.body.style.overflow = 'hidden';
+}
+
+function closeImageModal() {
+    const modal = document.querySelector('.image-modal');
+    if (modal) {
+        modal.remove();
+        document.body.style.overflow = '';
+    }
+}
+
+// ==================== VIDEO STREAM ====================
+function initializeVideoStream() {
+    const videoStream = document.getElementById('liveVideoStream');
+    const videoPlaceholder = document.getElementById('videoPlaceholder');
+
+    if (!videoStream) return;
+
+    // Try to load the stream
+    videoStream.src = CONFIG.VIDEO_STREAM_URL;
+
+    videoStream.onload = function() {
+        // Stream loaded successfully
+        videoPlaceholder.style.display = 'none';
+        videoStream.style.display = 'block';
+        console.log('Video stream connected successfully');
+    };
+
+    videoStream.onerror = function() {
+        // Stream failed to load - keep placeholder visible
+        videoPlaceholder.style.display = 'flex';
+        videoStream.style.display = 'none';
+        console.log('Video stream not available');
+    };
 }
 
 // ==================== CAMERA STATUS ====================

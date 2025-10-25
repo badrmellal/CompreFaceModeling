@@ -105,11 +105,10 @@ services:
       - ./camera-service/config/camera_config.env
     volumes:
       - ./camera-service/logs:/app/logs
+    ports:
+      - "5001:5001"  # MJPEG video streaming port
     networks:
       - default
-    # Uncomment if you need to access camera service from host
-    # ports:
-    #   - "5001:5000"
 
   # 1BIP Dashboard Service
   # Real-time monitoring interface for access control and attendance

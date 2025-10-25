@@ -797,6 +797,32 @@ body {
     font-size: 1.2rem;
 }
 
+/* ==================== PAGINATION CONTROLS ==================== */
+.pagination-controls {
+    grid-column: 1 / -1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 1rem;
+    padding: 1.5rem;
+    margin-top: 1rem;
+    background-color: var(--card-bg);
+    border-radius: 8px;
+    border: 2px solid var(--border-color);
+}
+
+.pagination-info {
+    font-weight: 600;
+    color: var(--text-color);
+    min-width: 120px;
+    text-align: center;
+}
+
+.pagination-controls button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
 /* ==================== RESPONSIVE ADJUSTMENTS ==================== */
 @media (max-width: 768px) {
     .image-grid {
@@ -814,5 +840,10 @@ body {
 
     .image-modal-body img {
         max-height: 60vh;
+    }
+
+    .pagination-controls {
+        flex-direction: column;
+        gap: 0.5rem;
     }
 }

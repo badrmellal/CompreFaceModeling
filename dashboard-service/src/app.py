@@ -487,18 +487,32 @@ def serve_captured_image(filename):
 
 @app.route('/api/images/latest')
 def get_latest_images():
-    """Get list of latest captured images"""
+    """Get list of latest captured images with pagination (unauthorized access only)"""
     try:
+        # Get pagination parameters
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 20, type=int)
+
+        # Limit per_page to prevent abuse
+        per_page = min(per_page, 100)
+
         camera_logs_path = os.getenv('CAMERA_LOGS_PATH', '/app/camera_logs')
         debug_images_path = os.path.join(camera_logs_path, 'debug_images')
 
         if not os.path.exists(debug_images_path):
-            return jsonify({'images': []})
+            return jsonify({
+                'images': [],
+                'total': 0,
+                'page': page,
+                'per_page': per_page,
+                'total_pages': 0
+            })
 
-        # Get all images sorted by modification time
+        # Get all UNAUTHORIZED images only (filter by filename prefix)
         images = []
         for filename in os.listdir(debug_images_path):
-            if filename.endswith(('.jpg', '.jpeg', '.png')):
+            # Only include images starting with "unauthorized_"
+            if filename.startswith('unauthorized_') and filename.endswith(('.jpg', '.jpeg', '.png')):
                 filepath = os.path.join(debug_images_path, filename)
                 mtime = os.path.getmtime(filepath)
                 images.append({
@@ -510,11 +524,32 @@ def get_latest_images():
         # Sort by timestamp (newest first)
         images.sort(key=lambda x: x['timestamp'], reverse=True)
 
-        # Return last 20 images
-        return jsonify({'images': images[:20]})
+        # Calculate pagination
+        total = len(images)
+        total_pages = (total + per_page - 1) // per_page  # Ceiling division
+        start_idx = (page - 1) * per_page
+        end_idx = start_idx + per_page
+
+        # Get page slice
+        page_images = images[start_idx:end_idx]
+
+        return jsonify({
+            'images': page_images,
+            'total': total,
+            'page': page,
+            'per_page': per_page,
+            'total_pages': total_pages
+        })
     except Exception as e:
         logger.error(f"Error getting latest images: {e}")
-        return jsonify({'error': str(e), 'images': []}), 500
+        return jsonify({
+            'error': str(e),
+            'images': [],
+            'total': 0,
+            'page': 1,
+            'per_page': per_page,
+            'total_pages': 0
+        }), 500
 
 
 # ============================================

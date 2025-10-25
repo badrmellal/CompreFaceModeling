@@ -83,6 +83,7 @@ function loadTabData(tabName) {
             break;
         case 'unauthorized':
             refreshUnauthorized();
+            refreshCapturedImages();
             break;
         case 'cameras':
             refreshCameraStatus();
@@ -240,6 +241,95 @@ async function refreshUnauthorized() {
     } catch (error) {
         console.error('Error loading unauthorized access:', error);
         tableBody.innerHTML = '<tr><td colspan="5" class="empty">Error loading data</td></tr>';
+    }
+}
+
+// ==================== CAPTURED IMAGES ====================
+async function refreshCapturedImages() {
+    const imageGrid = document.getElementById('capturedImagesGrid');
+    const imageCount = document.getElementById('imageCount');
+
+    imageGrid.innerHTML = '<div class="loading">Chargement des images capturées...</div>';
+
+    try {
+        const response = await fetch(`${CONFIG.API_BASE_URL}/api/images/latest`);
+        if (!response.ok) throw new Error('Failed to fetch images');
+
+        const data = await response.json();
+        const images = data.images || [];
+
+        imageCount.textContent = `${images.length} image(s) trouvée(s)`;
+
+        if (images.length === 0) {
+            imageGrid.innerHTML = '<div class="empty">Aucune image capturée trouvée</div>';
+            return;
+        }
+
+        imageGrid.innerHTML = images.map(img => {
+            const date = new Date(img.timestamp * 1000);
+            const timeStr = date.toLocaleString('fr-FR', {
+                day: '2-digit',
+                month: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+
+            return `
+                <div class="image-card" onclick="viewFullImage('${img.url}', '${escapeHtml(img.filename)}')">
+                    <div class="image-wrapper">
+                        <img src="${img.url}" alt="${escapeHtml(img.filename)}" loading="lazy" />
+                    </div>
+                    <div class="image-info">
+                        <div class="image-filename">${escapeHtml(img.filename)}</div>
+                        <div class="image-timestamp">🕒 ${timeStr}</div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+    } catch (error) {
+        console.error('Error loading captured images:', error);
+        imageGrid.innerHTML = '<div class="empty">Erreur lors du chargement des images</div>';
+        imageCount.textContent = 'Erreur';
+    }
+}
+
+function viewFullImage(url, filename) {
+    // Create modal overlay
+    const modal = document.createElement('div');
+    modal.className = 'image-modal';
+    modal.innerHTML = `
+        <div class="image-modal-content">
+            <div class="image-modal-header">
+                <h3>📸 ${escapeHtml(filename)}</h3>
+                <button class="image-modal-close" onclick="closeImageModal()">&times;</button>
+            </div>
+            <div class="image-modal-body">
+                <img src="${url}" alt="${escapeHtml(filename)}" />
+            </div>
+            <div class="image-modal-footer">
+                <button class="btn btn-secondary" onclick="closeImageModal()">Fermer</button>
+                <a href="${url}" download="${filename}" class="btn btn-primary">📥 Télécharger</a>
+            </div>
+        </div>
+    `;
+
+    modal.onclick = function(e) {
+        if (e.target === modal) {
+            closeImageModal();
+        }
+    };
+
+    document.body.appendChild(modal);
+    document.body.style.overflow = 'hidden';
+}
+
+function closeImageModal() {
+    const modal = document.querySelector('.image-modal');
+    if (modal) {
+        modal.remove();
+        document.body.style.overflow = '';
     }
 }
 

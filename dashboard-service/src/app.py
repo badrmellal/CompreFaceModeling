@@ -460,6 +460,64 @@ def serve_static(filename):
 
 
 # ============================================
+# CAPTURED IMAGES (from camera service)
+# ============================================
+
+@app.route('/api/images/<path:filename>')
+def serve_captured_image(filename):
+    """Serve captured images from camera service"""
+    try:
+        camera_logs_path = os.getenv('CAMERA_LOGS_PATH', '/app/camera_logs')
+        image_path = os.path.join(camera_logs_path, 'debug_images', filename)
+
+        if os.path.exists(image_path):
+            return send_from_directory(
+                os.path.join(camera_logs_path, 'debug_images'),
+                filename,
+                mimetype='image/jpeg'
+            )
+        else:
+            logger.warning(f"Image not found: {image_path}")
+            # Return placeholder image
+            return jsonify({'error': 'Image not found'}), 404
+    except Exception as e:
+        logger.error(f"Error serving image {filename}: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/images/latest')
+def get_latest_images():
+    """Get list of latest captured images"""
+    try:
+        camera_logs_path = os.getenv('CAMERA_LOGS_PATH', '/app/camera_logs')
+        debug_images_path = os.path.join(camera_logs_path, 'debug_images')
+
+        if not os.path.exists(debug_images_path):
+            return jsonify({'images': []})
+
+        # Get all images sorted by modification time
+        images = []
+        for filename in os.listdir(debug_images_path):
+            if filename.endswith(('.jpg', '.jpeg', '.png')):
+                filepath = os.path.join(debug_images_path, filename)
+                mtime = os.path.getmtime(filepath)
+                images.append({
+                    'filename': filename,
+                    'timestamp': mtime,
+                    'url': f'/api/images/{filename}'
+                })
+
+        # Sort by timestamp (newest first)
+        images.sort(key=lambda x: x['timestamp'], reverse=True)
+
+        # Return last 20 images
+        return jsonify({'images': images[:20]})
+    except Exception as e:
+        logger.error(f"Error getting latest images: {e}")
+        return jsonify({'error': str(e), 'images': []}), 500
+
+
+# ============================================
 # ERROR HANDLERS
 # ============================================
 

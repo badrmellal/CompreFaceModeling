@@ -823,6 +823,120 @@ body {
     cursor: not-allowed;
 }
 
+/* ==================== GALLERY FILTERS ==================== */
+.gallery-filters {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    padding: 1.5rem;
+    background-color: var(--card-bg);
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    margin-bottom: 1.5rem;
+}
+
+.filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.filter-group label {
+    font-weight: 600;
+    color: var(--text-color);
+    font-size: 0.9rem;
+}
+
+.filter-group input,
+.filter-group select {
+    padding: 0.5rem;
+    border: 2px solid var(--border-color);
+    border-radius: 4px;
+    background-color: #fff;
+    font-size: 0.9rem;
+    transition: border-color 0.2s;
+}
+
+.filter-group input:focus,
+.filter-group select:focus {
+    outline: none;
+    border-color: var(--primary-color);
+}
+
+.gallery-stats {
+    margin-bottom: 1rem;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-color);
+}
+
+/* ==================== IMAGE CARDS WITH STATUS ==================== */
+.image-card.authorized {
+    border-color: var(--success-color);
+}
+
+.image-card.unauthorized {
+    border-color: var(--danger-color);
+}
+
+.image-status-badge {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.image-status-badge.authorized {
+    background-color: var(--success-color);
+    color: #fff;
+}
+
+.image-status-badge.unauthorized {
+    background-color: var(--danger-color);
+    color: #fff;
+}
+
+.image-subject {
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: var(--text-color);
+    margin-bottom: 0.25rem;
+}
+
+.image-department {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    font-style: italic;
+    margin-bottom: 0.25rem;
+}
+
+.image-wrapper {
+    position: relative;
+}
+
+/* ==================== TABLE PAGINATION ==================== */
+.table-pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    margin-top: 1rem;
+    background-color: var(--card-bg);
+    border-radius: 8px;
+    border: 2px solid var(--border-color);
+}
+
+.table-pagination button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
 /* ==================== RESPONSIVE ADJUSTMENTS ==================== */
 @media (max-width: 768px) {
     .image-grid {

@@ -743,7 +743,7 @@ function downloadCSV(csv, filename) {
 
 // ==================== GALLERY FUNCTIONS ====================
 async function loadDepartments() {
-    """Load departments and sub-departments for filter dropdowns"""
+    //Load departments and sub-departments for filter dropdowns
     try {
         const response = await fetch(`${CONFIG.API_BASE_URL}/api/departments`);
         if (!response.ok) throw new Error('Failed to fetch departments');
@@ -770,7 +770,7 @@ async function loadDepartments() {
 }
 
 async function refreshGallery(page = 1) {
-    """Load gallery images with current filters"""
+    //Load gallery images with current filters
     const imageGrid = document.getElementById('galleryImagesGrid');
     const galleryCount = document.getElementById('galleryCount');
 
@@ -861,7 +861,7 @@ async function refreshGallery(page = 1) {
 }
 
 function applyGalleryFilters() {
-    """Apply filters and refresh gallery"""
+    //Apply filters and refresh gallery
     // Get filter values
     galleryFilters.name = document.getElementById('filterName').value.trim();
     galleryFilters.department = document.getElementById('filterDepartment').value;
@@ -873,7 +873,7 @@ function applyGalleryFilters() {
 }
 
 function resetGalleryFilters() {
-    """Reset all filters"""
+    //Reset all filters
     document.getElementById('filterName').value = '';
     document.getElementById('filterDepartment').value = '';
     document.getElementById('filterSubDepartment').value = '';
@@ -916,7 +916,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // ==================== UNAUTHORIZED TABLE PAGINATION ====================
 async function refreshUnauthorized(page = 1) {
-    """Refresh unauthorized access table with pagination"""
+    //Refresh unauthorized access table with pagination
     const hours = document.getElementById('unauthorizedHours').value;
     const tableBody = document.getElementById('unauthorizedTable');
     const countDiv = document.getElementById('unauthorizedCount');
@@ -973,7 +973,7 @@ async function refreshUnauthorized(page = 1) {
 }
 
 function changeUnauthorizedPage(direction) {
-    """Navigate unauthorized table pagination"""
+    //Navigate unauthorized table pagination
     const newPage = currentUnauthorizedPage + direction;
     if (newPage >= 1 && newPage <= totalUnauthorizedPages) {
         refreshUnauthorized(newPage);
@@ -986,7 +986,7 @@ function changeUnauthorizedPage(direction) {
 let departmentsConfig = {};
 
 async function loadDepartmentConfig() {
-    """Load department configuration for forms"""
+    //Load department configuration for forms
     try {
         const response = await fetch(`${CONFIG.API_BASE_URL}/api/personnel/departments/config`);
         const data = await response.json();
@@ -1016,7 +1016,7 @@ async function loadDepartmentConfig() {
 }
 
 function updateSubDepartments(department) {
-    """Update sub-department dropdown based on selected department"""
+    //Update sub-department dropdown based on selected department
     const subDeptSelect = document.getElementById('personnelSubDepartment');
     if (!subDeptSelect) return;
 
@@ -1135,7 +1135,7 @@ async function setupPersonnelForm() {
 }
 
 function showFormMessage(message, type) {
-    """Show form message (success or error)"""
+    //Show form message (success or error)
     const messageDiv = document.getElementById('formMessage');
     if (!messageDiv) return;
 
@@ -1151,7 +1151,7 @@ function showFormMessage(message, type) {
 
 // Load personnel list
 async function refreshPersonnelList() {
-    """Refresh the personnel list table"""
+    //Refresh the personnel list table
     const tableBody = document.getElementById('personnelListTable');
     if (!tableBody) return;
 
@@ -1197,7 +1197,7 @@ async function refreshPersonnelList() {
 
 // Filter personnel list (client-side)
 function filterPersonnelList() {
-    """Filter personnel list based on search input"""
+    //Filter personnel list based on search input
     const searchInput = document.getElementById('searchPersonnel');
     if (!searchInput) return;
 
@@ -1217,7 +1217,7 @@ function filterPersonnelList() {
 
 // Delete personnel
 async function deletePersonnel(subject) {
-    """Delete a personnel record"""
+    //Delete a personnel record
     if (!confirm(`Êtes-vous sûr de vouloir supprimer "${subject}" ?`)) {
         return;
     }
@@ -1244,7 +1244,7 @@ async function deletePersonnel(subject) {
 
 // Initialize personnel management when personnel tab is clicked
 function initPersonnelManagement() {
-    """Initialize personnel management features"""
+    //Initialize personnel management features
     loadDepartmentConfig();
     setupPhotoPreview();
     setupPersonnelForm();

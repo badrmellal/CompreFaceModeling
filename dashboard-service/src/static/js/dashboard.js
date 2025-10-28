@@ -105,6 +105,9 @@ function loadTabData(tabName) {
         case 'attendance':
             refreshAttendance();
             break;
+        case 'personnel':
+            initPersonnelManagement();
+            break;
         case 'unauthorized':
             refreshUnauthorized();
             break;
@@ -975,6 +978,277 @@ function changeUnauthorizedPage(direction) {
     if (newPage >= 1 && newPage <= totalUnauthorizedPages) {
         refreshUnauthorized(newPage);
     }
+}
+
+// ==================== PERSONNEL MANAGEMENT ====================
+
+// Department/Sub-department configuration
+let departmentsConfig = {};
+
+async function loadDepartmentConfig() {
+    """Load department configuration for forms"""
+    try {
+        const response = await fetch(`${CONFIG.API_BASE_URL}/api/personnel/departments/config`);
+        const data = await response.json();
+
+        departmentsConfig = data;
+
+        // Populate department dropdown
+        const deptSelect = document.getElementById('personnelDepartment');
+        if (deptSelect) {
+            deptSelect.innerHTML = '<option value="">Sélectionner un département</option>';
+            data.departments.forEach(dept => {
+                const option = document.createElement('option');
+                option.value = dept;
+                option.textContent = dept;
+                deptSelect.appendChild(option);
+            });
+
+            // Add change event listener for cascading sub-departments
+            deptSelect.addEventListener('change', function() {
+                updateSubDepartments(this.value);
+            });
+        }
+
+    } catch (error) {
+        console.error('Error loading department config:', error);
+    }
+}
+
+function updateSubDepartments(department) {
+    """Update sub-department dropdown based on selected department"""
+    const subDeptSelect = document.getElementById('personnelSubDepartment');
+    if (!subDeptSelect) return;
+
+    subDeptSelect.innerHTML = '<option value="">Sélectionner un sous-département</option>';
+
+    if (department && departmentsConfig.sub_departments && departmentsConfig.sub_departments[department]) {
+        departmentsConfig.sub_departments[department].forEach(subDept => {
+            const option = document.createElement('option');
+            option.value = subDept;
+            option.textContent = subDept;
+            subDeptSelect.appendChild(option);
+        });
+        subDeptSelect.disabled = false;
+    } else {
+        subDeptSelect.disabled = true;
+    }
+}
+
+// Handle photo file selection and preview
+function setupPhotoPreview() {
+    const photoInput = document.getElementById('personnelPhotos');
+    const previewContainer = document.getElementById('photoPreview');
+
+    if (photoInput && previewContainer) {
+        photoInput.addEventListener('change', function(e) {
+            previewContainer.innerHTML = '';
+
+            const files = Array.from(e.target.files);
+            if (files.length < 3) {
+                previewContainer.innerHTML = `
+                    <div class="photo-warning">
+                        ⚠️ Veuillez sélectionner au moins 3 photos (${files.length}/3 sélectionnées)
+                    </div>
+                `;
+                return;
+            }
+
+            files.forEach((file, index) => {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const preview = document.createElement('div');
+                    preview.className = 'photo-preview-item';
+                    preview.innerHTML = `
+                        <img src="${e.target.result}" alt="Photo ${index + 1}">
+                        <span class="photo-number">${index + 1}</span>
+                    `;
+                    previewContainer.appendChild(preview);
+                };
+                reader.readAsDataURL(file);
+            });
+        });
+    }
+}
+
+// Handle personnel form submission
+async function setupPersonnelForm() {
+    const form = document.getElementById('addPersonnelForm');
+    const messageDiv = document.getElementById('formMessage');
+
+    if (form) {
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            // Validate photos
+            const photoInput = document.getElementById('personnelPhotos');
+            if (photoInput.files.length < 3) {
+                showFormMessage('Veuillez sélectionner au moins 3 photos du visage', 'error');
+                return;
+            }
+
+            // Show loading state
+            const submitBtn = form.querySelector('button[type="submit"]');
+            const originalText = submitBtn.textContent;
+            submitBtn.disabled = true;
+            submitBtn.textContent = '⏳ Ajout en cours...';
+
+            try {
+                // Prepare form data
+                const formData = new FormData(form);
+
+                // Submit to API
+                const response = await fetch(`${CONFIG.API_BASE_URL}/api/personnel`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (response.ok && result.success) {
+                    showFormMessage(
+                        `✅ ${result.message} (${result.uploaded_photos}/${result.total_photos} photos téléchargées)`,
+                        'success'
+                    );
+
+                    // Reset form
+                    form.reset();
+                    document.getElementById('photoPreview').innerHTML = '';
+
+                    // Refresh personnel list
+                    setTimeout(() => {
+                        refreshPersonnelList();
+                    }, 1000);
+                } else {
+                    showFormMessage(`❌ Erreur: ${result.error}`, 'error');
+                }
+
+            } catch (error) {
+                console.error('Error adding personnel:', error);
+                showFormMessage('❌ Erreur lors de l\'ajout du personnel', 'error');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = originalText;
+            }
+        });
+    }
+}
+
+function showFormMessage(message, type) {
+    """Show form message (success or error)"""
+    const messageDiv = document.getElementById('formMessage');
+    if (!messageDiv) return;
+
+    messageDiv.textContent = message;
+    messageDiv.className = `form-message ${type}`;
+    messageDiv.style.display = 'block';
+
+    // Auto-hide after 5 seconds
+    setTimeout(() => {
+        messageDiv.style.display = 'none';
+    }, 5000);
+}
+
+// Load personnel list
+async function refreshPersonnelList() {
+    """Refresh the personnel list table"""
+    const tableBody = document.getElementById('personnelListTable');
+    if (!tableBody) return;
+
+    try {
+        tableBody.innerHTML = '<tr><td colspan="7" class="loading">Chargement...</td></tr>';
+
+        const response = await fetch(`${CONFIG.API_BASE_URL}/api/personnel`);
+        const data = await response.json();
+
+        if (!data.personnel || data.personnel.length === 0) {
+            tableBody.innerHTML = '<tr><td colspan="7" class="empty">Aucun personnel enregistré</td></tr>';
+            return;
+        }
+
+        // Sort by name
+        data.personnel.sort((a, b) => a.name.localeCompare(b.name));
+
+        tableBody.innerHTML = data.personnel.map(person => `
+            <tr>
+                <td>
+                    <div class="personnel-photo-placeholder">
+                        👤
+                    </div>
+                </td>
+                <td><strong>${escapeHtml(person.name)}</strong></td>
+                <td>${escapeHtml(person.rank || '-')}</td>
+                <td>${escapeHtml(person.department || '-')}</td>
+                <td>${escapeHtml(person.sub_department || '-')}</td>
+                <td>${person.created_date ? new Date(person.created_date).toLocaleDateString('fr-FR') : '-'}</td>
+                <td>
+                    <button class="btn btn-danger btn-sm" onclick="deletePersonnel('${escapeHtml(person.subject)}')">
+                        🗑️ Supprimer
+                    </button>
+                </td>
+            </tr>
+        `).join('');
+
+    } catch (error) {
+        console.error('Error loading personnel list:', error);
+        tableBody.innerHTML = '<tr><td colspan="7" class="empty">Erreur lors du chargement</td></tr>';
+    }
+}
+
+// Filter personnel list (client-side)
+function filterPersonnelList() {
+    """Filter personnel list based on search input"""
+    const searchInput = document.getElementById('searchPersonnel');
+    if (!searchInput) return;
+
+    const searchTerm = searchInput.value.toLowerCase().trim();
+    const tableBody = document.getElementById('personnelListTable');
+    const rows = tableBody.querySelectorAll('tr');
+
+    rows.forEach(row => {
+        const text = row.textContent.toLowerCase();
+        if (text.includes(searchTerm)) {
+            row.style.display = '';
+        } else {
+            row.style.display = 'none';
+        }
+    });
+}
+
+// Delete personnel
+async function deletePersonnel(subject) {
+    """Delete a personnel record"""
+    if (!confirm(`Êtes-vous sûr de vouloir supprimer "${subject}" ?`)) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`${CONFIG.API_BASE_URL}/api/personnel/${encodeURIComponent(subject)}`, {
+            method: 'DELETE'
+        });
+
+        const result = await response.json();
+
+        if (response.ok && result.success) {
+            alert(`✅ ${result.message}`);
+            refreshPersonnelList();
+        } else {
+            alert(`❌ Erreur: ${result.error}`);
+        }
+
+    } catch (error) {
+        console.error('Error deleting personnel:', error);
+        alert('❌ Erreur lors de la suppression');
+    }
+}
+
+// Initialize personnel management when personnel tab is clicked
+function initPersonnelManagement() {
+    """Initialize personnel management features"""
+    loadDepartmentConfig();
+    setupPhotoPreview();
+    setupPersonnelForm();
+    refreshPersonnelList();
 }
 
 // ==================== CONSOLE INFO ====================

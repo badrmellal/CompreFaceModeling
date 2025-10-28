@@ -75,6 +75,7 @@
         <div class="tabs">
             <button class="tab-btn active" data-tab="live">🔴 Moniteur de Sécurité en Direct</button>
             <button class="tab-btn" data-tab="attendance">📋 Suivi du Personnel</button>
+            <button class="tab-btn" data-tab="personnel">👥 Gestion du Personnel</button>
             <button class="tab-btn" data-tab="unauthorized">🚨 Alertes de Sécurité</button>
             <button class="tab-btn" data-tab="gallery">📸 Galerie Photos</button>
             <button class="tab-btn" data-tab="cameras">📹 État de Surveillance</button>
@@ -156,6 +157,107 @@
                         </tr>
                     </tbody>
                 </table>
+            </div>
+        </div>
+
+        <div class="tab-content" id="tab-personnel">
+            <h2>👥 Gestion du Personnel - Ajouter et Gérer le Personnel</h2>
+
+            <!-- Section Ajout de Personnel -->
+            <div class="personnel-form-section">
+                <h3>➕ Ajouter Nouveau Personnel</h3>
+                <form id="addPersonnelForm" class="personnel-form">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="personnelName">Nom Complet *</label>
+                            <input type="text" id="personnelName" name="name" required
+                                   placeholder="Ex: Capitaine Ahmed Bennani">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="personnelRank">Grade / Rang</label>
+                            <input type="text" id="personnelRank" name="rank"
+                                   placeholder="Ex: Capitaine, Lieutenant">
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="personnelDepartment">Département *</label>
+                            <select id="personnelDepartment" name="department" required>
+                                <option value="">Sélectionner un département</option>
+                                <option value="Commandement">Commandement</option>
+                                <option value="Operations">Opérations</option>
+                                <option value="Renseignement">Renseignement</option>
+                                <option value="Logistique">Logistique</option>
+                                <option value="Formation">Formation</option>
+                                <option value="Soutien">Soutien</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="personnelSubDepartment">Sous-Département</label>
+                            <select id="personnelSubDepartment" name="sub_department">
+                                <option value="">Sélectionner un sous-département</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="personnelPhotos">Photos du Visage * (Minimum 3 photos)</label>
+                        <div class="file-upload-wrapper">
+                            <input type="file" id="personnelPhotos" name="photos"
+                                   accept="image/jpeg,image/jpg,image/png"
+                                   multiple required>
+                            <div class="file-upload-info">
+                                📸 Sélectionnez au moins 3 photos claires du visage (différents angles)
+                            </div>
+                        </div>
+                        <div id="photoPreview" class="photo-preview"></div>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">
+                            ✅ Ajouter Personnel
+                        </button>
+                        <button type="reset" class="btn btn-secondary">
+                            🔄 Réinitialiser
+                        </button>
+                    </div>
+
+                    <div id="formMessage" class="form-message" style="display: none;"></div>
+                </form>
+            </div>
+
+            <!-- Section Liste du Personnel -->
+            <div class="personnel-list-section">
+                <h3>📋 Liste du Personnel Enregistré</h3>
+                <div class="controls">
+                    <button class="btn btn-primary" onclick="refreshPersonnelList()">🔄 Actualiser</button>
+                    <input type="text" id="searchPersonnel" placeholder="🔍 Rechercher personnel..."
+                           onkeyup="filterPersonnelList()">
+                </div>
+
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Photo</th>
+                                <th>Nom</th>
+                                <th>Grade</th>
+                                <th>Département</th>
+                                <th>Sous-Département</th>
+                                <th>Date Ajout</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="personnelListTable">
+                            <tr>
+                                <td colspan="7" class="loading">Chargement de la liste du personnel...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
 

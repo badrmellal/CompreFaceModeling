@@ -14,6 +14,8 @@ import logging
 from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional
 import json
+import requests
+import base64
 
 # Configure logging
 logging.basicConfig(
@@ -35,6 +37,10 @@ DB_CONFIG = {
     'user': os.getenv('DB_USER', 'postgres'),
     'password': os.getenv('DB_PASSWORD', 'admin')
 }
+
+# CompreFace API configuration
+COMPREFACE_API_URL = os.getenv('COMPREFACE_API_URL', 'http://compreface-api:8080')
+COMPREFACE_API_KEY = os.getenv('COMPREFACE_API_KEY', '00000000-0000-0000-0000-000000000002')
 
 
 class DatabaseConnection:
@@ -773,6 +779,207 @@ def get_unauthorized_paginated():
             'per_page': per_page,
             'total_pages': 0
         }), 500
+
+
+# ============================================
+# PERSONNEL MANAGEMENT (CompreFace Integration)
+# ============================================
+
+@app.route('/api/personnel', methods=['GET'])
+def get_personnel_list():
+    """Get list of all personnel from CompreFace"""
+    try:
+        # Call CompreFace API to get all subjects
+        url = f"{COMPREFACE_API_URL}/api/v1/recognition/subjects"
+        headers = {'x-api-key': COMPREFACE_API_KEY}
+
+        response = requests.get(url, headers=headers)
+        response.raise_for_status()
+
+        subjects = response.json().get('subjects', [])
+
+        # For each subject, get metadata
+        personnel_list = []
+        for subject in subjects:
+            # Get subject details
+            detail_url = f"{COMPREFACE_API_URL}/api/v1/recognition/subjects/{subject}"
+            detail_response = requests.get(detail_url, headers=headers)
+
+            if detail_response.status_code == 200:
+                detail_data = detail_response.json()
+
+                # Parse metadata (department, sub_department, rank stored as JSON)
+                metadata = {}
+                if 'metadata' in detail_data:
+                    try:
+                        metadata = json.loads(detail_data['metadata']) if isinstance(detail_data['metadata'], str) else detail_data['metadata']
+                    except:
+                        metadata = {}
+
+                personnel_list.append({
+                    'subject': subject,
+                    'name': subject,  # CompreFace uses subject name as identifier
+                    'department': metadata.get('department', ''),
+                    'sub_department': metadata.get('sub_department', ''),
+                    'rank': metadata.get('rank', ''),
+                    'created_date': metadata.get('created_date', '')
+                })
+
+        return jsonify({'personnel': personnel_list})
+
+    except Exception as e:
+        logger.error(f"Error getting personnel list: {e}")
+        return jsonify({'error': str(e), 'personnel': []}), 500
+
+
+@app.route('/api/personnel', methods=['POST'])
+def add_personnel():
+    """Add new personnel to CompreFace with photos"""
+    try:
+        # Parse form data
+        name = request.form.get('name', '').strip()
+        department = request.form.get('department', '').strip()
+        sub_department = request.form.get('sub_department', '').strip()
+        rank = request.form.get('rank', '').strip()
+
+        if not name:
+            return jsonify({'error': 'Name is required'}), 400
+
+        if not department:
+            return jsonify({'error': 'Department is required'}), 400
+
+        # Get uploaded photos
+        photos = request.files.getlist('photos')
+
+        if len(photos) < 3:
+            return jsonify({'error': 'Minimum 3 photos required'}), 400
+
+        # Create metadata JSON
+        metadata = {
+            'department': department,
+            'sub_department': sub_department,
+            'rank': rank,
+            'created_date': datetime.now().isoformat()
+        }
+
+        # Step 1: Add subject to CompreFace with metadata
+        headers = {'x-api-key': COMPREFACE_API_KEY}
+        add_subject_url = f"{COMPREFACE_API_URL}/api/v1/recognition/subjects"
+
+        subject_data = {
+            'subject': name,
+            'metadata': json.dumps(metadata)
+        }
+
+        response = requests.post(add_subject_url, headers=headers, json=subject_data)
+
+        if response.status_code not in [200, 201]:
+            logger.error(f"Failed to add subject: {response.text}")
+            return jsonify({'error': f'Failed to add personnel: {response.text}'}), 500
+
+        # Step 2: Upload photos
+        upload_url = f"{COMPREFACE_API_URL}/api/v1/recognition/faces"
+        upload_headers = {
+            'x-api-key': COMPREFACE_API_KEY
+        }
+
+        uploaded_count = 0
+        errors = []
+
+        for i, photo in enumerate(photos):
+            try:
+                # Reset file pointer
+                photo.seek(0)
+
+                # Prepare multipart form data
+                files = {'file': (photo.filename, photo, photo.content_type)}
+                data = {'subject': name}
+
+                upload_response = requests.post(
+                    upload_url,
+                    headers=upload_headers,
+                    files=files,
+                    data=data
+                )
+
+                if upload_response.status_code in [200, 201]:
+                    uploaded_count += 1
+                    logger.info(f"Uploaded photo {i+1}/{len(photos)} for {name}")
+                else:
+                    error_msg = f"Photo {i+1}: {upload_response.text}"
+                    errors.append(error_msg)
+                    logger.error(error_msg)
+
+            except Exception as e:
+                error_msg = f"Photo {i+1}: {str(e)}"
+                errors.append(error_msg)
+                logger.error(f"Error uploading photo {i+1}: {e}")
+
+        if uploaded_count == 0:
+            # Delete the subject if no photos were uploaded
+            delete_url = f"{COMPREFACE_API_URL}/api/v1/recognition/subjects/{name}"
+            requests.delete(delete_url, headers=headers)
+            return jsonify({
+                'error': 'Failed to upload any photos',
+                'details': errors
+            }), 500
+
+        return jsonify({
+            'success': True,
+            'message': f'Personnel "{name}" added successfully',
+            'uploaded_photos': uploaded_count,
+            'total_photos': len(photos),
+            'errors': errors if errors else None
+        }), 201
+
+    except Exception as e:
+        logger.error(f"Error adding personnel: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/personnel/<subject>', methods=['DELETE'])
+def delete_personnel(subject):
+    """Delete personnel from CompreFace"""
+    try:
+        headers = {'x-api-key': COMPREFACE_API_KEY}
+        delete_url = f"{COMPREFACE_API_URL}/api/v1/recognition/subjects/{subject}"
+
+        response = requests.delete(delete_url, headers=headers)
+
+        if response.status_code in [200, 204]:
+            logger.info(f"Deleted personnel: {subject}")
+            return jsonify({
+                'success': True,
+                'message': f'Personnel "{subject}" deleted successfully'
+            })
+        else:
+            logger.error(f"Failed to delete personnel: {response.text}")
+            return jsonify({
+                'error': f'Failed to delete personnel: {response.text}'
+            }), response.status_code
+
+    except Exception as e:
+        logger.error(f"Error deleting personnel: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/personnel/departments/config', methods=['GET'])
+def get_department_config():
+    """Get department/sub-department configuration for forms"""
+    # This returns the predefined department structure for the form
+    departments_config = {
+        'Commandement': ['État-Major', 'Planification', 'Coordination'],
+        'Operations': ['Opérations Terrestres', 'Opérations Aériennes', 'Opérations Spéciales'],
+        'Renseignement': ['Analyse', 'Collecte', 'Contre-Espionnage'],
+        'Logistique': ['Approvisionnement', 'Maintenance', 'Transport'],
+        'Formation': ['Formation Basique', 'Formation Avancée', 'Entraînement Spécialisé'],
+        'Soutien': ['Médical', 'Communications', 'Administration']
+    }
+
+    return jsonify({
+        'departments': list(departments_config.keys()),
+        'sub_departments': departments_config
+    })
 
 
 # ============================================

@@ -552,6 +552,229 @@ def get_latest_images():
         }), 500
 
 
+@app.route('/api/images/gallery')
+def get_gallery_images():
+    """Get gallery images with advanced filters and pagination"""
+    try:
+        # Get filter parameters
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 20, type=int)
+        name_filter = request.args.get('name', '').strip()
+        department_filter = request.args.get('department', '').strip()
+        sub_department_filter = request.args.get('sub_department', '').strip()
+        status_filter = request.args.get('status', '').strip()  # 'authorized', 'unauthorized', or ''
+
+        # Limit per_page
+        per_page = min(per_page, 100)
+
+        camera_logs_path = os.getenv('CAMERA_LOGS_PATH', '/app/camera_logs')
+        debug_images_path = os.path.join(camera_logs_path, 'debug_images')
+
+        if not os.path.exists(debug_images_path):
+            return jsonify({
+                'images': [],
+                'total': 0,
+                'page': page,
+                'per_page': per_page,
+                'total_pages': 0
+            })
+
+        # Query database for metadata
+        with DatabaseConnection() as conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+                # Build query with filters
+                query = """
+                    SELECT
+                        image_path,
+                        subject_name,
+                        department,
+                        sub_department,
+                        is_authorized,
+                        similarity,
+                        timestamp,
+                        camera_name
+                    FROM access_logs
+                    WHERE image_path IS NOT NULL
+                """
+                params = []
+
+                # Apply filters
+                if name_filter:
+                    query += " AND LOWER(subject_name) LIKE LOWER(%s)"
+                    params.append(f'%{name_filter}%')
+
+                if department_filter:
+                    query += " AND department = %s"
+                    params.append(department_filter)
+
+                if sub_department_filter:
+                    query += " AND sub_department = %s"
+                    params.append(sub_department_filter)
+
+                if status_filter == 'authorized':
+                    query += " AND is_authorized = TRUE"
+                elif status_filter == 'unauthorized':
+                    query += " AND is_authorized = FALSE"
+
+                # Count total
+                count_query = f"SELECT COUNT(*) FROM ({query}) AS filtered"
+                cursor.execute(count_query, params)
+                total = cursor.fetchone()['count']
+
+                # Get paginated results
+                query += " ORDER BY timestamp DESC LIMIT %s OFFSET %s"
+                params.extend([per_page, (page - 1) * per_page])
+
+                cursor.execute(query, params)
+                records = cursor.fetchall()
+
+        # Build response
+        images = []
+        for record in records:
+            filename = record['image_path']
+            filepath = os.path.join(debug_images_path, filename)
+
+            # Check if file exists
+            if os.path.exists(filepath):
+                images.append({
+                    'filename': filename,
+                    'url': f'/api/images/{filename}',
+                    'subject_name': record['subject_name'] or 'Unknown',
+                    'department': record['department'],
+                    'sub_department': record['sub_department'],
+                    'is_authorized': record['is_authorized'],
+                    'similarity': float(record['similarity']) if record['similarity'] else None,
+                    'timestamp': record['timestamp'].isoformat(),
+                    'camera_name': record['camera_name']
+                })
+
+        total_pages = (total + per_page - 1) // per_page
+
+        return jsonify({
+            'images': images,
+            'total': total,
+            'page': page,
+            'per_page': per_page,
+            'total_pages': total_pages
+        })
+
+    except Exception as e:
+        logger.error(f"Error getting gallery images: {e}")
+        return jsonify({
+            'error': str(e),
+            'images': [],
+            'total': 0,
+            'page': 1,
+            'per_page': per_page,
+            'total_pages': 0
+        }), 500
+
+
+@app.route('/api/departments')
+def get_departments():
+    """Get list of departments and sub-departments for filters"""
+    try:
+        with DatabaseConnection() as conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+                # Get unique departments
+                cursor.execute("""
+                    SELECT DISTINCT department
+                    FROM access_logs
+                    WHERE department IS NOT NULL
+                    ORDER BY department
+                """)
+                departments = [row['department'] for row in cursor.fetchall()]
+
+                # Get sub-departments grouped by department
+                cursor.execute("""
+                    SELECT DISTINCT department, sub_department
+                    FROM access_logs
+                    WHERE department IS NOT NULL AND sub_department IS NOT NULL
+                    ORDER BY department, sub_department
+                """)
+                rows = cursor.fetchall()
+
+                sub_departments = {}
+                for row in rows:
+                    dept = row['department']
+                    if dept not in sub_departments:
+                        sub_departments[dept] = []
+                    if row['sub_department'] not in sub_departments[dept]:
+                        sub_departments[dept].append(row['sub_department'])
+
+        return jsonify({
+            'departments': departments,
+            'sub_departments': sub_departments
+        })
+
+    except Exception as e:
+        logger.error(f"Error getting departments: {e}")
+        return jsonify({
+            'departments': [],
+            'sub_departments': {}
+        }), 500
+
+
+@app.route('/api/access/unauthorized_paginated')
+def get_unauthorized_paginated():
+    """Get unauthorized access attempts with pagination"""
+    try:
+        hours = request.args.get('hours', 24, type=int)
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 20, type=int)
+
+        # Limit per_page
+        per_page = min(per_page, 100)
+
+        with DatabaseConnection() as conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+                # Count total
+                cursor.execute("""
+                    SELECT COUNT(*) as count
+                    FROM access_logs
+                    WHERE is_authorized = FALSE
+                    AND timestamp >= NOW() - INTERVAL '%s hours'
+                """, (hours,))
+                total = cursor.fetchone()['count']
+
+                # Get paginated results
+                cursor.execute("""
+                    SELECT *
+                    FROM access_logs
+                    WHERE is_authorized = FALSE
+                    AND timestamp >= NOW() - INTERVAL '%s hours'
+                    ORDER BY timestamp DESC
+                    LIMIT %s OFFSET %s
+                """, (hours, per_page, (page - 1) * per_page))
+
+                records = cursor.fetchall()
+
+                # Convert to JSON-serializable format
+                for record in records:
+                    record['timestamp'] = record['timestamp'].isoformat()
+
+        total_pages = (total + per_page - 1) // per_page
+
+        return jsonify({
+            'records': records,
+            'total': total,
+            'page': page,
+            'per_page': per_page,
+            'total_pages': total_pages
+        })
+
+    except Exception as e:
+        logger.error(f"Error getting unauthorized access: {e}")
+        return jsonify({
+            'error': str(e),
+            'records': [],
+            'total': 0,
+            'page': 1,
+            'per_page': per_page,
+            'total_pages': 0
+        }), 500
+
+
 # ============================================
 # ERROR HANDLERS
 # ============================================

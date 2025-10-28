@@ -110,6 +110,8 @@ class DatabaseManager:
                         camera_name VARCHAR(255) NOT NULL,
                         camera_location VARCHAR(255),
                         subject_name VARCHAR(255),
+                        department VARCHAR(255),
+                        sub_department VARCHAR(255),
                         is_authorized BOOLEAN NOT NULL,
                         similarity FLOAT,
                         face_box JSON,
@@ -117,6 +119,21 @@ class DatabaseManager:
                         image_path VARCHAR(500),
                         metadata JSON
                     );
+                """)
+
+                # Add department and sub_department columns if they don't exist (migration)
+                cursor.execute("""
+                    DO $$
+                    BEGIN
+                        IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                                      WHERE table_name='access_logs' AND column_name='department') THEN
+                            ALTER TABLE access_logs ADD COLUMN department VARCHAR(255);
+                        END IF;
+                        IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                                      WHERE table_name='access_logs' AND column_name='sub_department') THEN
+                            ALTER TABLE access_logs ADD COLUMN sub_department VARCHAR(255);
+                        END IF;
+                    END $$;
                 """)
 
                 # Create index for faster queries
@@ -135,6 +152,11 @@ class DatabaseManager:
                     ON access_logs(is_authorized) WHERE is_authorized = FALSE;
                 """)
 
+                cursor.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_access_logs_department
+                    ON access_logs(department);
+                """)
+
                 self.connection.commit()
                 logger.info("Database tables verified/created")
         except Exception as e:
@@ -147,19 +169,21 @@ class DatabaseManager:
                    face_box: Optional[Dict] = None,
                    alert_sent: bool = False,
                    image_path: Optional[str] = None,
+                   department: Optional[str] = None,
+                   sub_department: Optional[str] = None,
                    metadata: Optional[Dict] = None):
         """Log an access attempt"""
         try:
             with self.connection.cursor() as cursor:
                 cursor.execute("""
                     INSERT INTO access_logs
-                    (camera_name, camera_location, subject_name, is_authorized,
-                     similarity, face_box, alert_sent, image_path, metadata)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    (camera_name, camera_location, subject_name, department, sub_department,
+                     is_authorized, similarity, face_box, alert_sent, image_path, metadata)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     RETURNING id;
                 """, (
-                    camera_name, camera_location, subject_name, is_authorized,
-                    similarity, json.dumps(face_box) if face_box else None,
+                    camera_name, camera_location, subject_name, department, sub_department,
+                    is_authorized, similarity, json.dumps(face_box) if face_box else None,
                     alert_sent, image_path, json.dumps(metadata) if metadata else None
                 ))
                 log_id = cursor.fetchone()[0]
@@ -490,8 +514,23 @@ class CameraService:
         # Draw boxes on frame FIRST (so we can save annotated images)
         annotated_frame = self.draw_face_boxes(frame.copy(), authorized_faces, unauthorized_faces)
 
-        # Log authorized access
+        # Log authorized access AND save images
         for face in authorized_faces:
+            image_path = None
+            filename = None
+
+            # Save annotated image with GREEN boxes for authorized access
+            if self.config.SAVE_DEBUG_IMAGES:
+                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+                # Include person name in filename (sanitize for filesystem)
+                safe_name = face['subject_name'].replace(' ', '_').replace('/', '_')
+                filename = f"authorized_{safe_name}_{timestamp}.jpg"
+                image_path = f"{self.config.DEBUG_IMAGE_PATH}/{filename}"
+
+                # Save the ANNOTATED frame (with green boxes and labels)
+                cv2.imwrite(image_path, annotated_frame)
+                logger.info(f"Saved authorized access image: {filename}")
+
             self.db_manager.log_access(
                 camera_name=self.config.CAMERA_NAME,
                 camera_location=self.config.CAMERA_LOCATION,
@@ -499,6 +538,9 @@ class CameraService:
                 is_authorized=True,
                 similarity=face['similarity'],
                 face_box=face['box'],
+                image_path=filename,
+                department=face.get('department'),
+                sub_department=face.get('sub_department'),
                 metadata={
                     'age': face.get('age'),
                     'gender': face.get('gender')
@@ -508,11 +550,15 @@ class CameraService:
         # Log unauthorized access and send alerts
         for face in unauthorized_faces:
             image_path = None
+            filename = None
 
-            # Save annotated image with face boxes for unauthorized access
+            # Save annotated image with RED boxes for unauthorized access
             if self.config.SAVE_DEBUG_IMAGES:
                 timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-                filename = f"unauthorized_{timestamp}.jpg"
+                # Include person name if recognized (low similarity) or "Unknown"
+                person_name = face.get('subject_name') or 'Unknown'
+                safe_name = person_name.replace(' ', '_').replace('/', '_')
+                filename = f"unauthorized_{safe_name}_{timestamp}.jpg"
                 image_path = f"{self.config.DEBUG_IMAGE_PATH}/{filename}"
 
                 # Save the ANNOTATED frame (with red boxes and labels)
@@ -527,7 +573,9 @@ class CameraService:
                 similarity=face.get('similarity'),
                 face_box=face['box'],
                 alert_sent=False,
-                image_path=filename if image_path else None,  # Store just filename
+                image_path=filename,
+                department=face.get('department'),
+                sub_department=face.get('sub_department'),
                 metadata={'reason': face.get('reason')}
             )
 

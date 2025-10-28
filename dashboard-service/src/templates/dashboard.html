@@ -76,6 +76,7 @@
             <button class="tab-btn active" data-tab="live">🔴 Moniteur de Sécurité en Direct</button>
             <button class="tab-btn" data-tab="attendance">📋 Suivi du Personnel</button>
             <button class="tab-btn" data-tab="unauthorized">🚨 Alertes de Sécurité</button>
+            <button class="tab-btn" data-tab="gallery">📸 Galerie Photos</button>
             <button class="tab-btn" data-tab="cameras">📹 État de Surveillance</button>
             <button class="tab-btn" data-tab="reports">📊 Rapports d'Opérations</button>
         </div>
@@ -191,17 +192,53 @@
                     </tbody>
                 </table>
             </div>
+            <!-- Pagination pour table Alertes -->
+            <div class="table-pagination" id="unauthorizedPagination" style="display: none;">
+                <button class="btn btn-secondary" onclick="changeUnauthorizedPage(-1)">◀ Précédent</button>
+                <span class="pagination-info" id="unauthorizedPageInfo">Page 1</span>
+                <button class="btn btn-secondary" onclick="changeUnauthorizedPage(1)">Suivant ▶</button>
+            </div>
+        </div>
 
-            <!-- Section Galerie d'Images Capturées -->
-            <div class="captured-images-section">
-                <h3>📸 Images Capturées des Détections</h3>
-                <div class="controls">
-                    <button class="btn btn-primary" onclick="refreshCapturedImages()">🔄 Actualiser Images</button>
-                    <span id="imageCount" class="image-count"></span>
+        <div class="tab-content" id="tab-gallery">
+            <h2>📸 Galerie Photos - Captures de Reconnaissance Faciale</h2>
+
+            <!-- Filtres -->
+            <div class="gallery-filters">
+                <div class="filter-group">
+                    <label>🔍 Filtrer par Nom:</label>
+                    <input type="text" id="filterName" placeholder="Nom de la personne..." onkeyup="applyGalleryFilters()">
                 </div>
-                <div id="capturedImagesGrid" class="image-grid">
-                    <div class="loading">Chargement des images capturées...</div>
+                <div class="filter-group">
+                    <label>🏢 Département:</label>
+                    <select id="filterDepartment" onchange="applyGalleryFilters()">
+                        <option value="">Tous les départements</option>
+                    </select>
                 </div>
+                <div class="filter-group">
+                    <label>📁 Sous-Département:</label>
+                    <select id="filterSubDepartment" onchange="applyGalleryFilters()">
+                        <option value="">Tous les sous-départements</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>✅ Statut:</label>
+                    <select id="filterStatus" onchange="applyGalleryFilters()">
+                        <option value="">Tous</option>
+                        <option value="authorized">Autorisés</option>
+                        <option value="unauthorized">Non Autorisés</option>
+                    </select>
+                </div>
+                <button class="btn btn-secondary" onclick="resetGalleryFilters()">🔄 Réinitialiser</button>
+            </div>
+
+            <div class="gallery-stats">
+                <span id="galleryCount" class="image-count"></span>
+            </div>
+
+            <!-- Galerie d'images -->
+            <div id="galleryImagesGrid" class="image-grid">
+                <div class="loading">Chargement de la galerie...</div>
             </div>
         </div>
 

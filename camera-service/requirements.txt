@@ -24,3 +24,6 @@ tenacity==8.2.3
 
 # JSON handling
 simplejson==3.19.2
+
+# Flask for video streaming server
+Flask==3.0.0

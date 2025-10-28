@@ -17,6 +17,16 @@ let countdownSeconds = 10;
 let currentTab = 'live';
 let currentImagePage = 1;
 let totalImagePages = 1;
+let currentGalleryPage = 1;
+let totalGalleryPages = 1;
+let currentUnauthorizedPage = 1;
+let totalUnauthorizedPages = 1;
+let galleryFilters = {
+    name: '',
+    department: '',
+    sub_department: '',
+    status: ''
+};
 
 // ==================== INITIALIZATION ====================
 document.addEventListener('DOMContentLoaded', function() {
@@ -38,6 +48,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // Start clock
     updateClock();
     setInterval(updateClock, 1000);
+
+    // Load departments for filters
+    loadDepartments();
 
     // Load initial data
     loadAllData();
@@ -94,7 +107,9 @@ function loadTabData(tabName) {
             break;
         case 'unauthorized':
             refreshUnauthorized();
-            refreshCapturedImages();
+            break;
+        case 'gallery':
+            refreshGallery();
             break;
         case 'cameras':
             refreshCameraStatus();
@@ -721,6 +736,245 @@ function downloadCSV(csv, filename) {
     a.click();
     document.body.removeChild(a);
     window.URL.revokeObjectURL(url);
+}
+
+// ==================== GALLERY FUNCTIONS ====================
+async function loadDepartments() {
+    """Load departments and sub-departments for filter dropdowns"""
+    try {
+        const response = await fetch(`${CONFIG.API_BASE_URL}/api/departments`);
+        if (!response.ok) throw new Error('Failed to fetch departments');
+
+        const data = await response.json();
+
+        // Populate department dropdown
+        const deptSelect = document.getElementById('filterDepartment');
+        if (deptSelect) {
+            data.departments.forEach(dept => {
+                const option = document.createElement('option');
+                option.value = dept;
+                option.textContent = dept;
+                deptSelect.appendChild(option);
+            });
+        }
+
+        // Store sub_departments for later use
+        window.subDepartmentsData = data.sub_departments;
+
+    } catch (error) {
+        console.error('Error loading departments:', error);
+    }
+}
+
+async function refreshGallery(page = 1) {
+    """Load gallery images with current filters"""
+    const imageGrid = document.getElementById('galleryImagesGrid');
+    const galleryCount = document.getElementById('galleryCount');
+
+    currentGalleryPage = page;
+    imageGrid.innerHTML = '<div class="loading">Chargement de la galerie...</div>';
+
+    try {
+        // Build query parameters
+        const params = new URLSearchParams({
+            page: page,
+            per_page: CONFIG.IMAGES_PER_PAGE,
+            name: galleryFilters.name,
+            department: galleryFilters.department,
+            sub_department: galleryFilters.sub_department,
+            status: galleryFilters.status
+        });
+
+        const response = await fetch(`${CONFIG.API_BASE_URL}/api/images/gallery?${params}`);
+        if (!response.ok) throw new Error('Failed to fetch gallery');
+
+        const data = await response.json();
+        const images = data.images || [];
+        const total = data.total || 0;
+        totalGalleryPages = data.total_pages || 1;
+
+        galleryCount.textContent = `${total} image(s) trouvée(s)`;
+
+        if (images.length === 0) {
+            imageGrid.innerHTML = '<div class="empty">Aucune image trouvée avec ces filtres</div>';
+            return;
+        }
+
+        // Build images grid
+        let gridHTML = images.map(img => {
+            const date = new Date(img.timestamp);
+            const timeStr = date.toLocaleString('fr-FR', {
+                day: '2-digit',
+                month: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+
+            const statusClass = img.is_authorized ? 'authorized' : 'unauthorized';
+            const statusIcon = img.is_authorized ? '✅' : '❌';
+            const statusLabel = img.is_authorized ? 'Autorisé' : 'Non Autorisé';
+
+            return `
+                <div class="image-card ${statusClass}" onclick="viewFullImage('${img.url}', '${escapeHtml(img.filename)}')">
+                    <div class="image-wrapper">
+                        <img src="${img.url}" alt="${escapeHtml(img.subject_name)}" loading="lazy" />
+                        <div class="image-status-badge ${statusClass}">${statusIcon} ${statusLabel}</div>
+                    </div>
+                    <div class="image-info">
+                        <div class="image-subject">${statusIcon} ${escapeHtml(img.subject_name)}</div>
+                        <div class="image-department">${escapeHtml(img.department || 'N/A')}</div>
+                        <div class="image-timestamp">🕒 ${timeStr}</div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        // Add pagination controls if needed
+        if (totalGalleryPages > 1) {
+            gridHTML += `
+                <div class="pagination-controls">
+                    <button class="btn btn-secondary" ${page <= 1 ? 'disabled' : ''}
+                            onclick="refreshGallery(${page - 1})">
+                        ◀ Précédent
+                    </button>
+                    <span class="pagination-info">
+                        Page ${page} sur ${totalGalleryPages}
+                    </span>
+                    <button class="btn btn-secondary" ${page >= totalGalleryPages ? 'disabled' : ''}
+                            onclick="refreshGallery(${page + 1})">
+                        Suivant ▶
+                    </button>
+                </div>
+            `;
+        }
+
+        imageGrid.innerHTML = gridHTML;
+
+    } catch (error) {
+        console.error('Error loading gallery:', error);
+        imageGrid.innerHTML = '<div class="empty">Erreur lors du chargement de la galerie</div>';
+        galleryCount.textContent = 'Erreur';
+    }
+}
+
+function applyGalleryFilters() {
+    """Apply filters and refresh gallery"""
+    // Get filter values
+    galleryFilters.name = document.getElementById('filterName').value.trim();
+    galleryFilters.department = document.getElementById('filterDepartment').value;
+    galleryFilters.sub_department = document.getElementById('filterSubDepartment').value;
+    galleryFilters.status = document.getElementById('filterStatus').value;
+
+    // Reset to page 1 and refresh
+    refreshGallery(1);
+}
+
+function resetGalleryFilters() {
+    """Reset all filters"""
+    document.getElementById('filterName').value = '';
+    document.getElementById('filterDepartment').value = '';
+    document.getElementById('filterSubDepartment').value = '';
+    document.getElementById('filterStatus').value = '';
+
+    galleryFilters = {
+        name: '',
+        department: '',
+        sub_department: '',
+        status: ''
+    };
+
+    refreshGallery(1);
+}
+
+// Update sub-department dropdown when department changes
+document.addEventListener('DOMContentLoaded', function() {
+    const deptSelect = document.getElementById('filterDepartment');
+    const subDeptSelect = document.getElementById('filterSubDepartment');
+
+    if (deptSelect && subDeptSelect) {
+        deptSelect.addEventListener('change', function() {
+            const selectedDept = this.value;
+
+            // Clear sub-department dropdown
+            subDeptSelect.innerHTML = '<option value="">Tous les sous-départements</option>';
+
+            // Populate with matching sub-departments
+            if (selectedDept && window.subDepartmentsData && window.subDepartmentsData[selectedDept]) {
+                window.subDepartmentsData[selectedDept].forEach(subDept => {
+                    const option = document.createElement('option');
+                    option.value = subDept;
+                    option.textContent = subDept;
+                    subDeptSelect.appendChild(option);
+                });
+            }
+        });
+    }
+});
+
+// ==================== UNAUTHORIZED TABLE PAGINATION ====================
+async function refreshUnauthorized(page = 1) {
+    """Refresh unauthorized access table with pagination"""
+    const hours = document.getElementById('unauthorizedHours').value;
+    const tableBody = document.getElementById('unauthorizedTable');
+    const countDiv = document.getElementById('unauthorizedCount');
+    const pagination = document.getElementById('unauthorizedPagination');
+    const pageInfo = document.getElementById('unauthorizedPageInfo');
+
+    currentUnauthorizedPage = page;
+    tableBody.innerHTML = '<tr><td colspan="5" class="loading">Chargement...</td></tr>';
+
+    try {
+        const response = await fetch(
+            `${CONFIG.API_BASE_URL}/api/access/unauthorized_paginated?hours=${hours}&page=${page}&per_page=20`
+        );
+        if (!response.ok) throw new Error('Failed to fetch unauthorized access');
+
+        const data = await response.json();
+        const records = data.records || [];
+        const total = data.total || 0;
+        totalUnauthorizedPages = data.total_pages || 1;
+
+        countDiv.innerHTML = `⚠️ <strong>${total}</strong> tentative(s) d'accès non autorisé dans les dernières ${hours} heure(s)`;
+
+        if (records.length === 0) {
+            tableBody.innerHTML = '<tr><td colspan="5" class="empty">Aucune tentative d\'accès non autorisé trouvée</td></tr>';
+            pagination.style.display = 'none';
+            return;
+        }
+
+        tableBody.innerHTML = records.map(record => `
+            <tr>
+                <td>${formatTime(record.timestamp)}</td>
+                <td>${escapeHtml(record.camera_name)}</td>
+                <td>${escapeHtml(record.camera_location || 'N/A')}</td>
+                <td>${escapeHtml(record.subject_name || 'Unknown Person')}</td>
+                <td><span class="badge ${record.alert_sent ? 'alert-sent' : 'no-alert'}">
+                    ${record.alert_sent ? 'Alerte Envoyée' : 'Pas d\'Alerte'}
+                </span></td>
+            </tr>
+        `).join('');
+
+        // Show/hide pagination
+        if (totalUnauthorizedPages > 1) {
+            pagination.style.display = 'flex';
+            pageInfo.textContent = `Page ${page} sur ${totalUnauthorizedPages}`;
+        } else {
+            pagination.style.display = 'none';
+        }
+
+    } catch (error) {
+        console.error('Error loading unauthorized access:', error);
+        tableBody.innerHTML = '<tr><td colspan="5" class="empty">Erreur lors du chargement</td></tr>';
+        pagination.style.display = 'none';
+    }
+}
+
+function changeUnauthorizedPage(direction) {
+    """Navigate unauthorized table pagination"""
+    const newPage = currentUnauthorizedPage + direction;
+    if (newPage >= 1 && newPage <= totalUnauthorizedPages) {
+        refreshUnauthorized(newPage);
+    }
 }
 
 // ==================== CONSOLE INFO ====================

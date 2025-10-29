@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "🔍 DIAGNOSTIC COMPLET 1BIP COMPREFACE"
+echo "🔍 DIAGNOSTIC COMPLET 1b COMPREFACE"
 echo "======================================"
 echo ""
 

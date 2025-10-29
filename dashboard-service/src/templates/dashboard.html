@@ -357,35 +357,94 @@
         </div>
 
         <div class="tab-content" id="tab-reports">
-            <h2>Rapports & Analyses</h2>
+            <h2>📊 Rapports & Analyses d'Opérations</h2>
             <div class="report-section">
-                <h3>Rapport de Présence</h3>
-                <div class="controls">
-                    <label>
-                        Date de Début:
-                        <input type="date" id="reportStartDate">
-                    </label>
-                    <label>
-                        Date de Fin:
-                        <input type="date" id="reportEndDate">
-                    </label>
-                    <button class="btn btn-primary" onclick="generateReport()">📊 Générer Rapport</button>
-                    <button class="btn btn-secondary" onclick="exportReport()">📥 Exporter CSV</button>
+                <h3>Rapport de Présence et Activité</h3>
+
+                <!-- Filtres étendus -->
+                <div class="report-filters">
+                    <div class="filter-row">
+                        <div class="filter-group">
+                            <label>📅 Date de Début:</label>
+                            <input type="date" id="reportStartDate">
+                        </div>
+                        <div class="filter-group">
+                            <label>📅 Date de Fin:</label>
+                            <input type="date" id="reportEndDate">
+                        </div>
+                    </div>
+
+                    <div class="filter-row">
+                        <div class="filter-group">
+                            <label>🔍 Filtrer par Nom:</label>
+                            <input type="text" id="reportFilterName" placeholder="Nom du personnel...">
+                        </div>
+                        <div class="filter-group">
+                            <label>🪂 Bataillon / Unité:</label>
+                            <select id="reportFilterDepartment">
+                                <option value="">Tous les bataillons</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="filter-row">
+                        <div class="filter-group">
+                            <label>📁 Compagnie / Section:</label>
+                            <input type="text" id="reportFilterSubDepartment" placeholder="Compagnie ou section...">
+                        </div>
+                        <div class="filter-group">
+                            <label>✅ Statut:</label>
+                            <select id="reportFilterStatus">
+                                <option value="">Tous</option>
+                                <option value="authorized">Autorisés uniquement</option>
+                                <option value="unauthorized">Non autorisés uniquement</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="filter-actions">
+                        <button class="btn btn-primary" onclick="generateReport()">📊 Générer Rapport</button>
+                        <button class="btn btn-secondary" onclick="resetReportFilters()">🔄 Réinitialiser Filtres</button>
+                        <button class="btn btn-secondary" onclick="exportReport()">📥 Exporter CSV</button>
+                    </div>
                 </div>
+
+                <div class="report-summary" id="reportSummary" style="display: none;">
+                    <div class="summary-card">
+                        <span class="summary-label">Total Enregistrements:</span>
+                        <span class="summary-value" id="summaryTotal">0</span>
+                    </div>
+                    <div class="summary-card">
+                        <span class="summary-label">Personnel Unique:</span>
+                        <span class="summary-value" id="summaryUnique">0</span>
+                    </div>
+                    <div class="summary-card">
+                        <span class="summary-label">Autorisés:</span>
+                        <span class="summary-value success" id="summaryAuthorized">0</span>
+                    </div>
+                    <div class="summary-card">
+                        <span class="summary-label">Non Autorisés:</span>
+                        <span class="summary-value danger" id="summaryUnauthorized">0</span>
+                    </div>
+                </div>
+
                 <div class="table-container">
                     <table class="data-table">
                         <thead>
                             <tr>
                                 <th>Date</th>
                                 <th>Personnel</th>
+                                <th>Bataillon</th>
+                                <th>Compagnie</th>
                                 <th>Première Entrée</th>
                                 <th>Dernière Entrée</th>
-                                <th>Nombre d'Entrées</th>
+                                <th>Nb Entrées</th>
+                                <th>Statut</th>
                             </tr>
                         </thead>
                         <tbody id="reportTable">
                             <tr>
-                                <td colspan="5" class="empty">Sélectionnez la plage de dates et cliquez sur "Générer Rapport"</td>
+                                <td colspan="8" class="empty">Sélectionnez les filtres et cliquez sur "Générer Rapport"</td>
                             </tr>
                         </tbody>
                     </table>
@@ -393,7 +452,7 @@
             </div>
 
             <div class="report-section">
-                <h3>Graphique d'Activité Horaire</h3>
+                <h3>📈 Graphique d'Activité Horaire</h3>
                 <div id="hourlyChart" class="chart-container">
                     <canvas id="activityChart" width="800" height="300"></canvas>
                 </div>

@@ -1,9 +1,8 @@
-# 1BIP Camera Service Dockerfile
 # Hikvision Camera Integration with CompreFace
 
 FROM python:3.9-slim
 
-LABEL maintainer="1BIP Organization"
+LABEL maintainer="MELLAL BADR"
 LABEL description="Camera integration service for face recognition and access control"
 
 # Set working directory

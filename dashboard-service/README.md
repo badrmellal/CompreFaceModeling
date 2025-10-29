@@ -289,7 +289,7 @@ docker-compose logs dashboard-service
 
 **Expected output:**
 ```
-Starting 1BIP Dashboard Service on port 5000
+Starting Dashboard Service on port 5000
 Database: compreface-postgres-db:5432/frs_1bip
 Dashboard will be available at http://localhost:5000
 ```

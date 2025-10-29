@@ -1,6 +1,6 @@
-# 1BIP Face Recognition System - Quick Start Guide
+# MELLAL BADR Face Recognition System - Quick Start Guide
 
-Complete offline face recognition and attendance system for 1BIP organization.
+Complete offline face recognition and attendance system for our organization.
 
 ---
 
@@ -22,7 +22,7 @@ A complete, production-ready face recognition system that:
 ## 📦 System Components
 
 ```
-1BIP Face Recognition System
+ Face Recognition System
 │
 ├── CompreFace (Face Recognition Engine)
 │   ├── Admin Service (User management)
@@ -98,7 +98,7 @@ compreface-ui             Up
 http://localhost:8000
 ```
 
-**1BIP Dashboard** (Monitor & track):
+** Dashboard** (Monitor & track):
 ```
 http://localhost:5000
 ```
@@ -122,7 +122,7 @@ http://localhost:5000
 
 1. Log in to CompreFace
 2. Click "Create Application"
-3. Name: `1BIP Main System`
+3. Name: `Main System`
 4. Click "Create"
 
 ### 3. Create Recognition Service
@@ -177,7 +177,7 @@ http://localhost:5000
 - Manage user access
 - Test face recognition
 
-### 1BIP Dashboard (http://localhost:5000)
+###  Dashboard (http://localhost:5000)
 
 **Purpose:** Monitor and track attendance
 
@@ -576,20 +576,3 @@ See **OFFLINE_OPERATION_GUIDE.md** for details.
 6. ⏭️ Configure HTTPS for production
 7. ⏭️ Set up automated backups
 8. ⏭️ Create user accounts for HR/Security team
-
----
-
-## 📞 Support
-
-For technical support:
-- Check documentation in `/docs` folder
-- Review service logs
-- Verify configuration files
-- Test with CompreFace UI first
-
----
-
-**Version:** 1.0.0
-**Last Updated:** 2025-10-21
-**Organization:** 1BIP
-**Status:** ✅ Production Ready

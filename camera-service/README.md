@@ -472,7 +472,7 @@ For issues and questions:
 
 ## License
 
-Part of 1BIP Face Recognition System
+Part of my Face Recognition System
 Based on CompreFace (Apache 2.0 License)
 
 ---

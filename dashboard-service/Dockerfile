@@ -1,9 +1,8 @@
-# 1BIP Dashboard Service Dockerfile
 # Real-time monitoring interface for face recognition system
 
 FROM python:3.9-slim
 
-LABEL maintainer="1BIP Organization"
+LABEL maintainer="MELLAL BADR"
 LABEL description="Web dashboard for face recognition and attendance monitoring"
 
 # Set working directory

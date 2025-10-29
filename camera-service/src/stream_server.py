@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-1BIP Video Streaming Server
+MELLAL Video Streaming Server
 Serves MJPEG stream from camera service for dashboard viewing
 Optimized for low latency and smooth playback
 """

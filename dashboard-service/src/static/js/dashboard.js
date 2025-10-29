@@ -1132,9 +1132,18 @@ async function setupPersonnelForm() {
     const form = document.getElementById('addPersonnelForm');
     const messageDiv = document.getElementById('formMessage');
 
+    // Submission guard flag to prevent multiple simultaneous submissions
+    let isSubmitting = false;
+
     if (form) {
         form.addEventListener('submit', async function(e) {
             e.preventDefault();
+
+            // Prevent multiple simultaneous submissions
+            if (isSubmitting) {
+                console.log('Submission already in progress, ignoring duplicate request');
+                return;
+            }
 
             // Validate photos
             const photoInput = document.getElementById('personnelPhotos');
@@ -1143,7 +1152,8 @@ async function setupPersonnelForm() {
                 return;
             }
 
-            // Show loading state
+            // Set submission flag and show loading state
+            isSubmitting = true;
             const submitBtn = form.querySelector('button[type="submit"]');
             const originalText = submitBtn.textContent;
             submitBtn.disabled = true;
@@ -1175,6 +1185,12 @@ async function setupPersonnelForm() {
                     setTimeout(() => {
                         refreshPersonnelList();
                     }, 1000);
+                } else if (response.status === 409) {
+                    // Subject already exists
+                    showFormMessage(
+                        `❌ ${result.error}\n💡 Conseil: Vérifiez la liste du personnel ci-dessous ou utilisez un nom différent.`,
+                        'error'
+                    );
                 } else {
                     showFormMessage(`❌ Erreur: ${result.error}`, 'error');
                 }
@@ -1183,6 +1199,8 @@ async function setupPersonnelForm() {
                 console.error('Error adding personnel:', error);
                 showFormMessage('❌ Erreur lors de l\'ajout du personnel', 'error');
             } finally {
+                // Reset submission flag and button state
+                isSubmitting = false;
                 submitBtn.disabled = false;
                 submitBtn.textContent = originalText;
             }

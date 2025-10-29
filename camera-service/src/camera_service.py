@@ -357,21 +357,42 @@ class FaceRecognitionService:
                 subject_name = top_subject.get('subject')
                 similarity = top_subject.get('similarity', 0)
 
+                # Extract metadata (department, sub_department, rank, etc.)
+                metadata = {}
+                subject_metadata = top_subject.get('metadata', {})
+
+                # If metadata is a string (JSON), parse it
+                if isinstance(subject_metadata, str):
+                    try:
+                        metadata = json.loads(subject_metadata)
+                    except Exception as e:
+                        logger.warning(f"Failed to parse metadata JSON: {e}")
+                        metadata = {}
+                elif isinstance(subject_metadata, dict):
+                    metadata = subject_metadata
+
                 if similarity >= self.config.SIMILARITY_THRESHOLD:
                     authorized.append({
                         'subject_name': subject_name,
                         'similarity': similarity,
                         'box': box,
                         'age': result.get('age'),
-                        'gender': result.get('gender')
+                        'gender': result.get('gender'),
+                        'department': metadata.get('department'),
+                        'sub_department': metadata.get('sub_department'),
+                        'rank': metadata.get('rank'),
+                        'metadata': metadata
                     })
-                    logger.info(f"✓ Authorized: {subject_name} ({similarity:.2%})")
+                    logger.info(f"✓ Authorized: {subject_name} ({similarity:.2%}) - {metadata.get('department', 'N/A')}")
                 else:
                     unauthorized.append({
                         'subject_name': subject_name,
                         'similarity': similarity,
                         'box': box,
-                        'reason': 'Low similarity'
+                        'reason': 'Low similarity',
+                        'department': metadata.get('department'),
+                        'sub_department': metadata.get('sub_department'),
+                        'metadata': metadata
                     })
                     logger.warning(f"✗ Low similarity: {subject_name} ({similarity:.2%})")
             else:

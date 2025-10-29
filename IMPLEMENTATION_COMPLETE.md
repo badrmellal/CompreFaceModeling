@@ -285,6 +285,5 @@ Après déploiement, vérifiez:
 
 ---
 
-## 🇲🇦 1BIP - Forces Armées Royales Marocaines
-### 1ère Brigade d'Infanterie Parachutiste
-**CLASSIFIÉ - USAGE MILITAIRE UNIQUEMENT**
+Updates made by Mellal Badr
+https://badr-mellal.com

@@ -1,4 +1,4 @@
-# 📸 Galerie Photos - Guide d'Implémentation Complète
+#  Galerie Photos - Guide d'Implémentation Complète
 
 ## ✅ Fonctionnalités Implémentées
 
@@ -23,7 +23,7 @@
 
 ---
 
-## 🚀 Déploiement
+##  Déploiement
 
 ```bash
 # Sur votre VM Linux
@@ -237,17 +237,17 @@ curl "http://localhost:5000/api/departments"
 ┌──────────────────────────────────────────────────────────────┐
 │ 📸 Galerie Photos - Captures de Reconnaissance Faciale       │
 ├──────────────────────────────────────────────────────────────┤
-│ 🔍 Nom: [_________]  🏢 Dept: [▼]  📁 Sous: [▼]  ✅ [▼]  🔄 │
-│                                                               │
+│ 🔍 Nom: [_________]  🏢 Dept: [▼]  📁 Sous: [▼]  ✅ [▼]  🔄    │
+│                                                              │
 │ 150 image(s) trouvée(s)                                      │
-│                                                               │
-│ ┌─────┐ ┌─────┐ ┌─────┐ ┌─────┐ ┌─────┐                    │
-│ │✅📷 │ │✅📷 │ │❌📷 │ │✅📷 │ │❌📷 │                    │
-│ │Mohamed│ │Karim│ │Unknown│ │Ahmed│ │Hassan│                    │
-│ │14:30 │ │14:31│ │14:32│ │14:33│ │14:34│                    │
-│ └─────┘ └─────┘ └─────┘ └─────┘ └─────┘                    │
-│                                                               │
-│         ◀ Précédent    Page 1 sur 8    Suivant ▶            │
+│                                                              │
+│ ┌─────┐ ┌─────┐ ┌─────┐ ┌─────┐ ┌─────┐                      │
+│ │✅📷 │ │✅📷 │ │❌📷 │ │✅📷 │ │❌📷 │                         │
+│ │Mohamed│ │Karim│ │Unknown│ │Ahmed│ │Hassan│                 │
+│ │14:30 │ │14:31│ │14:32│ │14:33│ │14:34│                     │
+│ └─────┘ └─────┘ └─────┘ └─────┘ └─────┘                      │
+│                                                              │
+│         ◀ Précédent    Page 1 sur 8    Suivant ▶             │
 └──────────────────────────────────────────────────────────────┘
 ```
 
@@ -255,17 +255,17 @@ curl "http://localhost:5000/api/departments"
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│ 🚨 Tentatives d'Accès Non Autorisées                        │
+│ 🚨 Tentatives d'Accès Non Autorisées                         │
 ├──────────────────────────────────────────────────────────────┤
-│ Plage: [24 Dernières Heures ▼]  🔄 Actualiser               │
-│                                                               │
-│ ⚠️ 45 accès non autorisés dans les dernières 24 heures      │
-│                                                               │
-│ │ Horodatage        │ Caméra    │ Personne │ Alerte │       │
-│ │ 27/01 14:32:10   │ Gate Alpha│ Unknown  │  ✓     │       │
-│ │ 27/01 14:34:22   │ Gate Alpha│ Hassan M.│  ✓     │       │
-│                                                               │
-│         ◀ Précédent    Page 1 sur 3    Suivant ▶            │
+│ Plage: [24 Dernières Heures ▼]  🔄 Actualiser                │
+│                                                              │
+│ ⚠️ 45 accès non autorisés dans les dernières 24 heures       │
+│                                                              │
+│ │ Horodatage        │ Caméra    │ Personne │ Alerte │        │
+│ │ 27/01 14:32:10   │ Gate Alpha│ Unknown  │  ✓      │        │
+│ │ 27/01 14:34:22   │ Gate Alpha│ Hassan M.│  ✓      │        │
+│                                                              │
+│         ◀ Précédent    Page 1 sur 3    Suivant ▶             │
 └──────────────────────────────────────────────────────────────┘
 ```
 

@@ -1,4 +1,4 @@
-# 1BIP Camera Integration Service
+# Camera Integration Service
 
 Real-time face recognition and access control system for Hikvision cameras integrated with CompreFace.
 
@@ -32,7 +32,7 @@ Authorization Check (Known vs Unknown)
 ├─ Authorized → Log to Database
 └─ Unauthorized → Alert + Log to Database
     ↓
-Alert Manager → Webhook/Email Notifications
+Alert Manager → Webhook/Email Notifications but we will stick to an internal alert system.
 ```
 
 ---
@@ -479,4 +479,3 @@ Based on CompreFace (Apache 2.0 License)
 
 **Last Updated:** 2025-10-21
 **Version:** 1.0.0
-**Maintained by:** 1BIP Organization

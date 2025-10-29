@@ -247,28 +247,58 @@ def get_attendance_today():
 
 @app.route('/api/attendance/report')
 def get_attendance_report():
-    """Get attendance report for date range"""
+    """Get attendance report for date range with advanced filters"""
     start_date = request.args.get('start_date', datetime.now().date().isoformat())
     end_date = request.args.get('end_date', datetime.now().date().isoformat())
+    name_filter = request.args.get('name', '').strip()
+    department_filter = request.args.get('department', '').strip()
+    sub_department_filter = request.args.get('sub_department', '').strip()
+    status_filter = request.args.get('status', '').strip()  # 'authorized', 'unauthorized', or ''
 
     try:
         with DatabaseConnection() as conn:
             with conn.cursor(cursor_factory=RealDictCursor) as cursor:
-                cursor.execute("""
+                # Build dynamic query
+                query = """
                     SELECT
                         DATE(timestamp) as date,
                         subject_name,
+                        department,
+                        sub_department,
                         MIN(timestamp) as first_entry,
                         MAX(timestamp) as last_entry,
-                        COUNT(*) as entries_count
+                        COUNT(*) as entries_count,
+                        is_authorized
                     FROM access_logs
-                    WHERE is_authorized = TRUE
-                    AND subject_name IS NOT NULL
+                    WHERE subject_name IS NOT NULL
                     AND timestamp::date BETWEEN %s AND %s
-                    GROUP BY DATE(timestamp), subject_name
-                    ORDER BY date DESC, first_entry
-                """, (start_date, end_date))
+                """
+                params = [start_date, end_date]
 
+                # Apply filters
+                if name_filter:
+                    query += " AND LOWER(subject_name) LIKE LOWER(%s)"
+                    params.append(f'%{name_filter}%')
+
+                if department_filter:
+                    query += " AND department = %s"
+                    params.append(department_filter)
+
+                if sub_department_filter:
+                    query += " AND LOWER(sub_department) LIKE LOWER(%s)"
+                    params.append(f'%{sub_department_filter}%')
+
+                if status_filter == 'authorized':
+                    query += " AND is_authorized = TRUE"
+                elif status_filter == 'unauthorized':
+                    query += " AND is_authorized = FALSE"
+
+                query += """
+                    GROUP BY DATE(timestamp), subject_name, department, sub_department, is_authorized
+                    ORDER BY date DESC, first_entry
+                """
+
+                cursor.execute(query, params)
                 records = cursor.fetchall()
 
                 for record in records:

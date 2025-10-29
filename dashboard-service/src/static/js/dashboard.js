@@ -4,7 +4,7 @@
 // ==================== CONFIGURATION ====================
 const CONFIG = {
     API_BASE_URL: '',  // Same origin
-    REFRESH_INTERVAL: 10000,  // 10 seconds
+    REFRESH_INTERVAL: 30000,  // 30 seconds (auto-refresh interval)
     COUNTDOWN_INTERVAL: 1000, // 1 second
     VIDEO_STREAM_URL: '',  // Will be set dynamically based on current host
     IMAGES_PER_PAGE: 20,
@@ -119,6 +119,7 @@ function loadTabData(tabName) {
             break;
         case 'reports':
             loadHourlyChart();
+            loadReportDepartments();
             break;
     }
 }
@@ -470,65 +471,162 @@ function initializeDateInputs() {
     document.getElementById('reportEndDate').value = today;
 }
 
+// Load departments for report filters
+async function loadReportDepartments() {
+    try {
+        const response = await fetch(`${CONFIG.API_BASE_URL}/api/departments`);
+        const data = await response.json();
+
+        const deptSelect = document.getElementById('reportFilterDepartment');
+        if (deptSelect && data.departments) {
+            deptSelect.innerHTML = '<option value="">Tous les bataillons</option>';
+            data.departments.forEach(dept => {
+                const option = document.createElement('option');
+                option.value = dept;
+                option.textContent = dept;
+                deptSelect.appendChild(option);
+            });
+        }
+    } catch (error) {
+        console.error('Error loading report departments:', error);
+    }
+}
+
+// Reset report filters
+function resetReportFilters() {
+    document.getElementById('reportStartDate').value = '';
+    document.getElementById('reportEndDate').value = '';
+    document.getElementById('reportFilterName').value = '';
+    document.getElementById('reportFilterDepartment').value = '';
+    document.getElementById('reportFilterSubDepartment').value = '';
+    document.getElementById('reportFilterStatus').value = '';
+
+    // Hide summary
+    document.getElementById('reportSummary').style.display = 'none';
+
+    // Clear table
+    document.getElementById('reportTable').innerHTML = '<tr><td colspan="8" class="empty">Sélectionnez les filtres et cliquez sur "Générer Rapport"</td></tr>';
+}
+
 async function generateReport() {
     const startDate = document.getElementById('reportStartDate').value;
     const endDate = document.getElementById('reportEndDate').value;
+    const nameFilter = document.getElementById('reportFilterName').value.trim();
+    const departmentFilter = document.getElementById('reportFilterDepartment').value;
+    const subDepartmentFilter = document.getElementById('reportFilterSubDepartment').value.trim();
+    const statusFilter = document.getElementById('reportFilterStatus').value;
+
     const tableBody = document.getElementById('reportTable');
+    const summaryDiv = document.getElementById('reportSummary');
 
     if (!startDate || !endDate) {
-        showError('Please select both start and end dates');
+        alert('Veuillez sélectionner les dates de début et de fin');
         return;
     }
 
-    tableBody.innerHTML = '<tr><td colspan="5" class="loading">Generating report...</td></tr>';
+    tableBody.innerHTML = '<tr><td colspan="8" class="loading">Génération du rapport...</td></tr>';
+    summaryDiv.style.display = 'none';
 
     try {
-        const response = await fetch(`${CONFIG.API_BASE_URL}/api/attendance/report?start_date=${startDate}&end_date=${endDate}`);
+        // Build query parameters
+        const params = new URLSearchParams({
+            start_date: startDate,
+            end_date: endDate
+        });
+
+        if (nameFilter) params.append('name', nameFilter);
+        if (departmentFilter) params.append('department', departmentFilter);
+        if (subDepartmentFilter) params.append('sub_department', subDepartmentFilter);
+        if (statusFilter) params.append('status', statusFilter);
+
+        const response = await fetch(`${CONFIG.API_BASE_URL}/api/attendance/report?${params}`);
         if (!response.ok) throw new Error('Failed to generate report');
 
         const data = await response.json();
 
         if (data.length === 0) {
-            tableBody.innerHTML = '<tr><td colspan="5" class="empty">No data found for selected date range</td></tr>';
+            tableBody.innerHTML = '<tr><td colspan="8" class="empty">Aucune donnée trouvée pour les critères sélectionnés</td></tr>';
             return;
         }
 
-        tableBody.innerHTML = data.map(record => `
-            <tr>
-                <td>${record.date}</td>
-                <td><strong>${escapeHtml(record.subject_name)}</strong></td>
-                <td>${formatTime(record.first_entry)}</td>
-                <td>${formatTime(record.last_entry)}</td>
-                <td>${record.entries_count}</td>
-            </tr>
-        `).join('');
+        // Calculate summary statistics
+        const uniquePersons = new Set(data.map(r => r.subject_name)).size;
+        let authorizedCount = 0;
+        let unauthorizedCount = 0;
+
+        // Display table
+        tableBody.innerHTML = data.map(record => {
+            const isAuthorized = record.is_authorized !== false;
+            if (isAuthorized) authorizedCount++;
+            else unauthorizedCount++;
+
+            const statusBadge = isAuthorized ?
+                '<span class="badge alert-sent">✅ Autorisé</span>' :
+                '<span class="badge no-alert">❌ Non Autorisé</span>';
+
+            return `
+                <tr>
+                    <td>${record.date}</td>
+                    <td><strong>${escapeHtml(record.subject_name)}</strong></td>
+                    <td>${escapeHtml(record.department || '-')}</td>
+                    <td>${escapeHtml(record.sub_department || '-')}</td>
+                    <td>${formatTime(record.first_entry)}</td>
+                    <td>${formatTime(record.last_entry)}</td>
+                    <td>${record.entries_count}</td>
+                    <td>${statusBadge}</td>
+                </tr>
+            `;
+        }).join('');
+
+        // Display summary
+        document.getElementById('summaryTotal').textContent = data.length;
+        document.getElementById('summaryUnique').textContent = uniquePersons;
+        document.getElementById('summaryAuthorized').textContent = authorizedCount;
+        document.getElementById('summaryUnauthorized').textContent = unauthorizedCount;
+        summaryDiv.style.display = 'grid';
 
     } catch (error) {
         console.error('Error generating report:', error);
-        tableBody.innerHTML = '<tr><td colspan="5" class="empty">Error generating report</td></tr>';
+        tableBody.innerHTML = '<tr><td colspan="8" class="empty">Erreur lors de la génération du rapport</td></tr>';
     }
 }
 
 function exportReport() {
     const startDate = document.getElementById('reportStartDate').value;
     const endDate = document.getElementById('reportEndDate').value;
+    const nameFilter = document.getElementById('reportFilterName').value.trim();
+    const departmentFilter = document.getElementById('reportFilterDepartment').value;
+    const subDepartmentFilter = document.getElementById('reportFilterSubDepartment').value.trim();
+    const statusFilter = document.getElementById('reportFilterStatus').value;
 
     if (!startDate || !endDate) {
-        showError('Please select both start and end dates');
+        alert('Veuillez sélectionner les dates de début et de fin');
         return;
     }
 
-    fetch(`${CONFIG.API_BASE_URL}/api/attendance/report?start_date=${startDate}&end_date=${endDate}`)
+    // Build query parameters
+    const params = new URLSearchParams({
+        start_date: startDate,
+        end_date: endDate
+    });
+
+    if (nameFilter) params.append('name', nameFilter);
+    if (departmentFilter) params.append('department', departmentFilter);
+    if (subDepartmentFilter) params.append('sub_department', subDepartmentFilter);
+    if (statusFilter) params.append('status', statusFilter);
+
+    fetch(`${CONFIG.API_BASE_URL}/api/attendance/report?${params}`)
         .then(response => response.json())
         .then(data => {
             const csv = convertToCSV(data, [
-                'date', 'subject_name', 'first_entry', 'last_entry', 'entries_count'
+                'date', 'subject_name', 'department', 'sub_department',
+                'first_entry', 'last_entry', 'entries_count', 'is_authorized'
             ]);
-            downloadCSV(csv, `attendance_report_${startDate}_to_${endDate}.csv`);
+            downloadCSV(csv, `rapport_1bip_${startDate}_to_${endDate}.csv`);
         })
         .catch(error => {
             console.error('Error exporting report:', error);
-            showError('Failed to export report');
+            alert('Erreur lors de l\'exportation du rapport');
         });
 }
 

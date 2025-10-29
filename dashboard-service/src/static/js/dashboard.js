@@ -983,56 +983,14 @@ function changeUnauthorizedPage(direction) {
 // ==================== PERSONNEL MANAGEMENT ====================
 
 // Department/Sub-department configuration
-let departmentsConfig = {};
+// Note: Departments are now hardcoded in HTML for 1BIP military structure
+// Sub-departments are manually entered (no cascade)
 
 async function loadDepartmentConfig() {
-    //Load department configuration for forms
-    try {
-        const response = await fetch(`${CONFIG.API_BASE_URL}/api/personnel/departments/config`);
-        const data = await response.json();
-
-        departmentsConfig = data;
-
-        // Populate department dropdown
-        const deptSelect = document.getElementById('personnelDepartment');
-        if (deptSelect) {
-            deptSelect.innerHTML = '<option value="">Sélectionner un département</option>';
-            data.departments.forEach(dept => {
-                const option = document.createElement('option');
-                option.value = dept;
-                option.textContent = dept;
-                deptSelect.appendChild(option);
-            });
-
-            // Add change event listener for cascading sub-departments
-            deptSelect.addEventListener('change', function() {
-                updateSubDepartments(this.value);
-            });
-        }
-
-    } catch (error) {
-        console.error('Error loading department config:', error);
-    }
-}
-
-function updateSubDepartments(department) {
-    //Update sub-department dropdown based on selected department
-    const subDeptSelect = document.getElementById('personnelSubDepartment');
-    if (!subDeptSelect) return;
-
-    subDeptSelect.innerHTML = '<option value="">Sélectionner un sous-département</option>';
-
-    if (department && departmentsConfig.sub_departments && departmentsConfig.sub_departments[department]) {
-        departmentsConfig.sub_departments[department].forEach(subDept => {
-            const option = document.createElement('option');
-            option.value = subDept;
-            option.textContent = subDept;
-            subDeptSelect.appendChild(option);
-        });
-        subDeptSelect.disabled = false;
-    } else {
-        subDeptSelect.disabled = true;
-    }
+    // Departments are hardcoded in the HTML form
+    // Sub-department is now a text input (manual entry)
+    // No dynamic loading or cascade needed
+    console.log('Department configuration: Using 1BIP military structure (hardcoded)');
 }
 
 // Handle photo file selection and preview

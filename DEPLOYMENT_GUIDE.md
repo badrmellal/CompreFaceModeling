@@ -1,6 +1,6 @@
-# 1BIP Face Recognition System - Deployment Guide
+# Face Recognition System - Deployment Guide
 
-Complete guide for deploying the 1BIP Face Recognition & Attendance System with Hikvision camera integration.
+Complete guide for deploying my custom Face Recognition & Attendance System with Hikvision camera integration.
 
 ---
 
@@ -530,27 +530,5 @@ To add more cameras:
 
 ---
 
-## Getting Help
-
-### Log Locations
-
-- **Camera Service**: `camera-service/logs/camera_service.log`
-- **CompreFace API**: `docker-compose logs compreface-api`
-- **CompreFace Core**: `docker-compose logs compreface-core`
-- **Database**: `docker-compose logs compreface-postgres-db`
-
-### Common Issues
-
-See `camera-service/README.md` → Troubleshooting section
-
-### Support Contacts
-
-- Technical Lead: [your-email@1bip.com]
-- Security Team: security@1bip.com
-- IT Support: support@1bip.com
-
----
-
 **Deployment Guide Version:** 1.0.0
 **Last Updated:** 2025-10-21
-**For:** 1BIP Organization

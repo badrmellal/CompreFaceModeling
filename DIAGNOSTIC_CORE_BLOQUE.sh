@@ -1,7 +1,6 @@
 #!/bin/bash
 
 # Script de diagnostic complet pour compreface-core bloqué
-# 1BIP - Moroccan Airborne Troops
 
 echo "🔍 DIAGNOSTIC COMPREFACE-CORE BLOQUÉ"
 echo "===================================="

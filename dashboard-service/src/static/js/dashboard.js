@@ -4,7 +4,7 @@
 // ==================== CONFIGURATION ====================
 const CONFIG = {
     API_BASE_URL: '',  // Same origin
-    REFRESH_INTERVAL: 10000,  // 10 seconds
+    REFRESH_INTERVAL: 30000,  // 30 seconds (auto-refresh interval)
     COUNTDOWN_INTERVAL: 1000, // 1 second
     VIDEO_STREAM_URL: '',  // Will be set dynamically based on current host
     IMAGES_PER_PAGE: 20,

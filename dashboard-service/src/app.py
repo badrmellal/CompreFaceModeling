@@ -966,19 +966,27 @@ def delete_personnel(subject):
 @app.route('/api/personnel/departments/config', methods=['GET'])
 def get_department_config():
     """Get department/sub-department configuration for forms"""
-    # This returns the predefined department structure for the form
-    departments_config = {
-        'Commandement': ['État-Major', 'Planification', 'Coordination'],
-        'Operations': ['Opérations Terrestres', 'Opérations Aériennes', 'Opérations Spéciales'],
-        'Renseignement': ['Analyse', 'Collecte', 'Contre-Espionnage'],
-        'Logistique': ['Approvisionnement', 'Maintenance', 'Transport'],
-        'Formation': ['Formation Basique', 'Formation Avancée', 'Entraînement Spécialisé'],
-        'Soutien': ['Médical', 'Communications', 'Administration']
-    }
+    # 1BIP - Structure organisationnelle des Troupes Aéroportées Marocaines
+    # Départements: Bataillons et Unités de la 1ère Brigade d'Infanterie Parachutiste
+    departments = [
+        '1BCAS',    # 1er Bataillon de Commandement et d'Appui au Service
+        '10BPAG',   # 10ème Bataillon Parachutiste d'Assaut Génie
+        '11BPAG',   # 11ème Bataillon Parachutiste d'Assaut Génie
+        '12BPAG',   # 12ème Bataillon Parachutiste d'Assaut Génie
+        '13BIP',    # 13ème Bataillon d'Infanterie Parachutiste
+        '14BIP',    # 14ème Bataillon d'Infanterie Parachutiste
+        '15BIP',    # 15ème Bataillon d'Infanterie Parachutiste
+        'CITAP',    # Centre d'Instruction des Troupes Aéroportées
+        'VISITORS'  # Visiteurs
+    ]
+
+    # Sous-départements: Saisie manuelle (pas de cascade automatique)
+    # Les sous-départements seront saisis manuellement selon l'organisation de chaque bataillon
+    # Exemples: Compagnie 1, Compagnie 2, Section Commandement, etc.
 
     return jsonify({
-        'departments': list(departments_config.keys()),
-        'sub_departments': departments_config
+        'departments': departments,
+        'sub_departments': {}  # Vide: saisie manuelle
     })
 
 

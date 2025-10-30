@@ -818,9 +818,9 @@ def get_unauthorized_paginated():
 
 @app.route('/api/personnel', methods=['GET'])
 def get_personnel_list():
-    """Get list of all personnel from CompreFace"""
+    """Get list of all personnel from CompreFace + our metadata DB"""
     try:
-        # Call CompreFace API to get all subjects
+        # Step 1: Get all subjects from CompreFace
         url = f"{COMPREFACE_API_URL}/api/v1/recognition/subjects"
         headers = {'x-api-key': COMPREFACE_API_KEY}
 
@@ -830,37 +830,42 @@ def get_personnel_list():
         subjects = response.json().get('subjects', [])
         logger.info(f"Fetched {len(subjects)} subjects from CompreFace: {subjects}")
 
-        # For each subject, get metadata
+        # Step 2: Get metadata from OUR database
         personnel_list = []
-        for subject in subjects:
-            # Get subject details (URL encode the subject name for spaces, etc.)
-            encoded_subject = quote(subject, safe='')
-            detail_url = f"{COMPREFACE_API_URL}/api/v1/recognition/subjects/{encoded_subject}"
-            detail_response = requests.get(detail_url, headers=headers)
 
-            if detail_response.status_code == 200:
-                detail_data = detail_response.json()
-                logger.debug(f"Subject '{subject}' details: {detail_data}")
+        with DatabaseConnection() as conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+                for subject in subjects:
+                    # Fetch metadata from our personnel_metadata table
+                    cursor.execute("""
+                        SELECT subject_name, department, sub_department, rank, created_date
+                        FROM personnel_metadata
+                        WHERE subject_name = %s
+                    """, (subject,))
 
-                # Parse metadata (department, sub_department, rank stored as JSON)
-                metadata = {}
-                if 'metadata' in detail_data:
-                    try:
-                        metadata = json.loads(detail_data['metadata']) if isinstance(detail_data['metadata'], str) else detail_data['metadata']
-                    except Exception as parse_error:
-                        logger.error(f"Failed to parse metadata for '{subject}': {parse_error}")
-                        metadata = {}
+                    metadata_row = cursor.fetchone()
 
-                personnel_list.append({
-                    'subject': subject,
-                    'name': subject,  # CompreFace uses subject name as identifier
-                    'department': metadata.get('department', ''),
-                    'sub_department': metadata.get('sub_department', ''),
-                    'rank': metadata.get('rank', ''),
-                    'created_date': metadata.get('created_date', '')
-                })
-            else:
-                logger.warning(f"Failed to get details for subject '{subject}': {detail_response.status_code}")
+                    if metadata_row:
+                        # Personnel with metadata
+                        personnel_list.append({
+                            'subject': subject,
+                            'name': subject,
+                            'department': metadata_row['department'] or '',
+                            'sub_department': metadata_row['sub_department'] or '',
+                            'rank': metadata_row['rank'] or '',
+                            'created_date': metadata_row['created_date'].isoformat() if metadata_row['created_date'] else ''
+                        })
+                    else:
+                        # Personnel without metadata (added via port 8000 directly)
+                        logger.warning(f"Subject '{subject}' has no metadata in DB (added externally?)")
+                        personnel_list.append({
+                            'subject': subject,
+                            'name': subject,
+                            'department': '',
+                            'sub_department': '',
+                            'rank': '',
+                            'created_date': ''
+                        })
 
         logger.info(f"Returning {len(personnel_list)} personnel records")
         return jsonify({'personnel': personnel_list})
@@ -990,6 +995,26 @@ def add_personnel():
                 'details': errors
             }), 500
 
+        # Step 3: Save metadata to OUR database
+        try:
+            with DatabaseConnection() as conn:
+                with conn.cursor() as cursor:
+                    cursor.execute("""
+                        INSERT INTO personnel_metadata (subject_name, department, sub_department, rank, created_date)
+                        VALUES (%s, %s, %s, %s, CURRENT_TIMESTAMP)
+                        ON CONFLICT (subject_name)
+                        DO UPDATE SET
+                            department = EXCLUDED.department,
+                            sub_department = EXCLUDED.sub_department,
+                            rank = EXCLUDED.rank,
+                            updated_date = CURRENT_TIMESTAMP
+                    """, (name, department, sub_department, rank))
+                    conn.commit()
+                    logger.info(f"Saved metadata for {name} to database")
+        except Exception as db_error:
+            logger.error(f"Failed to save metadata to database: {db_error}")
+            # Don't fail the entire operation, metadata can be added later
+
         return jsonify({
             'success': True,
             'message': f'Personnel "{name}" added successfully',
@@ -1005,15 +1030,31 @@ def add_personnel():
 
 @app.route('/api/personnel/<subject>', methods=['DELETE'])
 def delete_personnel(subject):
-    """Delete personnel from CompreFace"""
+    """Delete personnel from CompreFace and our metadata DB"""
     try:
+        # Step 1: Delete from CompreFace
         headers = {'x-api-key': COMPREFACE_API_KEY}
         delete_url = f"{COMPREFACE_API_URL}/api/v1/recognition/subjects/{subject}"
 
         response = requests.delete(delete_url, headers=headers)
 
         if response.status_code in [200, 204]:
-            logger.info(f"Deleted personnel: {subject}")
+            logger.info(f"Deleted personnel from CompreFace: {subject}")
+
+            # Step 2: Delete metadata from our database
+            try:
+                with DatabaseConnection() as conn:
+                    with conn.cursor() as cursor:
+                        cursor.execute("""
+                            DELETE FROM personnel_metadata
+                            WHERE subject_name = %s
+                        """, (subject,))
+                        conn.commit()
+                        logger.info(f"Deleted metadata from database: {subject}")
+            except Exception as db_error:
+                logger.error(f"Failed to delete metadata from database: {db_error}")
+                # Continue anyway, CompreFace deletion succeeded
+
             return jsonify({
                 'success': True,
                 'message': f'Personnel "{subject}" deleted successfully'
@@ -1071,6 +1112,33 @@ def internal_error(error):
 
 
 # ============================================
+# DATABASE MIGRATIONS
+# ============================================
+
+def run_migrations():
+    """Run database migrations on startup"""
+    try:
+        migration_file = '/app/migrations/001_create_personnel_metadata.sql'
+
+        # Check if file exists
+        if not os.path.exists(migration_file):
+            logger.warning(f"Migration file not found: {migration_file}")
+            return
+
+        with DatabaseConnection() as conn:
+            with conn.cursor() as cursor:
+                # Read and execute migration
+                with open(migration_file, 'r') as f:
+                    migration_sql = f.read()
+                    cursor.execute(migration_sql)
+                    conn.commit()
+                    logger.info("Database migrations completed successfully")
+    except Exception as e:
+        logger.error(f"Migration failed: {e}")
+        # Don't crash the app, just log the error
+
+
+# ============================================
 # APPLICATION STARTUP
 # ============================================
 
@@ -1080,6 +1148,11 @@ if __name__ == '__main__':
 
     logger.info(f"Starting 1BIP Dashboard Service on port {port}")
     logger.info(f"Database: {DB_CONFIG['host']}:{DB_CONFIG['port']}/{DB_CONFIG['database']}")
+
+    # Run migrations
+    logger.info("Running database migrations...")
+    run_migrations()
+
     logger.info("Dashboard will be available at http://localhost:5000")
 
     app.run(

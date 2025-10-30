@@ -1080,6 +1080,10 @@ function changeUnauthorizedPage(direction) {
 
 // ==================== PERSONNEL MANAGEMENT ====================
 
+// Global flags to prevent multiple event listener attachments and submissions
+let personnelFormInitialized = false;
+let isSubmittingPersonnel = false;
+
 // Department/Sub-department configuration
 // Note: Departments are now hardcoded in HTML for 1BIP military structure
 // Sub-departments are manually entered (no cascade)
@@ -1129,18 +1133,21 @@ function setupPhotoPreview() {
 
 // Handle personnel form submission
 async function setupPersonnelForm() {
+    // Prevent multiple event listener attachments
+    if (personnelFormInitialized) {
+        console.log('Personnel form already initialized, skipping duplicate setup');
+        return;
+    }
+
     const form = document.getElementById('addPersonnelForm');
     const messageDiv = document.getElementById('formMessage');
-
-    // Submission guard flag to prevent multiple simultaneous submissions
-    let isSubmitting = false;
 
     if (form) {
         form.addEventListener('submit', async function(e) {
             e.preventDefault();
 
-            // Prevent multiple simultaneous submissions
-            if (isSubmitting) {
+            // Prevent multiple simultaneous submissions (using global flag)
+            if (isSubmittingPersonnel) {
                 console.log('Submission already in progress, ignoring duplicate request');
                 return;
             }
@@ -1153,7 +1160,7 @@ async function setupPersonnelForm() {
             }
 
             // Set submission flag and show loading state
-            isSubmitting = true;
+            isSubmittingPersonnel = true;
             const submitBtn = form.querySelector('button[type="submit"]');
             const originalText = submitBtn.textContent;
             submitBtn.disabled = true;
@@ -1200,11 +1207,15 @@ async function setupPersonnelForm() {
                 showFormMessage('❌ Erreur lors de l\'ajout du personnel', 'error');
             } finally {
                 // Reset submission flag and button state
-                isSubmitting = false;
+                isSubmittingPersonnel = false;
                 submitBtn.disabled = false;
                 submitBtn.textContent = originalText;
             }
         });
+
+        // Mark as initialized to prevent duplicate event listeners
+        personnelFormInitialized = true;
+        console.log('Personnel form initialized successfully');
     }
 }
 

@@ -11,6 +11,8 @@ WORKDIR /app
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
     libpq-dev \
+    curl \
+    postgresql-client \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements and install Python dependencies
@@ -19,6 +21,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application source code
 COPY src/ /app/
+
+# Copy wait-for-services script
+COPY wait-for-services.sh /app/wait-for-services.sh
+RUN chmod +x /app/wait-for-services.sh
 
 # Create static directories if they don't exist
 RUN mkdir -p /app/static/css /app/static/js /app/static/img
@@ -30,10 +36,9 @@ ENV FLASK_APP=app.py
 # Expose port
 EXPOSE 5000
 
-# Health check - Désactivé temporairement pour debugging
-# Le dashboard fonctionne correctement (logs montrent 200 OK)
-# HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-#   CMD python -c "import requests; requests.get('http://localhost:5000/health')" || exit 1
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+  CMD curl -f http://localhost:5000/health || exit 1
 
-# Run the dashboard service
-CMD ["python", "-u", "app.py"]
+# Run the dashboard service with wait script
+CMD ["/app/wait-for-services.sh"]

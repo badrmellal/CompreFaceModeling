@@ -873,16 +873,31 @@ def add_personnel():
         rank = request.form.get('rank', '').strip()
 
         if not name:
-            return jsonify({'error': 'Name is required'}), 400
+            return jsonify({'error': 'Nom requis'}), 400
 
         if not department:
-            return jsonify({'error': 'Department is required'}), 400
+            return jsonify({'error': 'Bataillon / Unité requis'}), 400
 
         # Get uploaded photos
         photos = request.files.getlist('photos')
 
         if len(photos) < 3:
-            return jsonify({'error': 'Minimum 3 photos required'}), 400
+            return jsonify({'error': 'Minimum 3 photos requises'}), 400
+
+        # Step 0: Check if subject already exists
+        headers = {'x-api-key': COMPREFACE_API_KEY}
+        check_url = f"{COMPREFACE_API_URL}/api/v1/recognition/subjects/{name}"
+
+        check_response = requests.get(check_url, headers=headers)
+
+        if check_response.status_code == 200:
+            # Subject exists
+            logger.warning(f"Attempt to add existing subject: {name}")
+            return jsonify({
+                'error': f'Le personnel "{name}" existe déjà dans le système.',
+                'exists': True,
+                'hint': 'Veuillez utiliser un nom différent ou supprimer l\'entrée existante depuis la liste ci-dessous.'
+            }), 409  # 409 Conflict
 
         # Create metadata JSON
         metadata = {
@@ -893,7 +908,6 @@ def add_personnel():
         }
 
         # Step 1: Add subject to CompreFace with metadata
-        headers = {'x-api-key': COMPREFACE_API_KEY}
         add_subject_url = f"{COMPREFACE_API_URL}/api/v1/recognition/subjects"
 
         subject_data = {
@@ -904,8 +918,22 @@ def add_personnel():
         response = requests.post(add_subject_url, headers=headers, json=subject_data)
 
         if response.status_code not in [200, 201]:
+            # Parse error message
+            try:
+                error_data = response.json()
+                error_msg = error_data.get('message', response.text)
+
+                # Check for "already exists" error (code 43)
+                if error_data.get('code') == 43 or 'already exists' in error_msg.lower():
+                    return jsonify({
+                        'error': f'Le personnel "{name}" existe déjà.',
+                        'exists': True
+                    }), 409
+            except:
+                pass
+
             logger.error(f"Failed to add subject: {response.text}")
-            return jsonify({'error': f'Failed to add personnel: {response.text}'}), 500
+            return jsonify({'error': f'Échec de l\'ajout du personnel: {response.text}'}), 500
 
         # Step 2: Upload photos
         upload_url = f"{COMPREFACE_API_URL}/api/v1/recognition/faces"

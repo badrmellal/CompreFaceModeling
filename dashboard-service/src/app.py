@@ -827,6 +827,7 @@ def get_personnel_list():
         response.raise_for_status()
 
         subjects = response.json().get('subjects', [])
+        logger.info(f"Fetched {len(subjects)} subjects from CompreFace: {subjects}")
 
         # For each subject, get metadata
         personnel_list = []
@@ -837,13 +838,15 @@ def get_personnel_list():
 
             if detail_response.status_code == 200:
                 detail_data = detail_response.json()
+                logger.debug(f"Subject '{subject}' details: {detail_data}")
 
                 # Parse metadata (department, sub_department, rank stored as JSON)
                 metadata = {}
                 if 'metadata' in detail_data:
                     try:
                         metadata = json.loads(detail_data['metadata']) if isinstance(detail_data['metadata'], str) else detail_data['metadata']
-                    except:
+                    except Exception as parse_error:
+                        logger.error(f"Failed to parse metadata for '{subject}': {parse_error}")
                         metadata = {}
 
                 personnel_list.append({
@@ -854,7 +857,10 @@ def get_personnel_list():
                     'rank': metadata.get('rank', ''),
                     'created_date': metadata.get('created_date', '')
                 })
+            else:
+                logger.warning(f"Failed to get details for subject '{subject}': {detail_response.status_code}")
 
+        logger.info(f"Returning {len(personnel_list)} personnel records")
         return jsonify({'personnel': personnel_list})
 
     except Exception as e:

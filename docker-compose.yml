@@ -131,7 +131,7 @@ services:
       - FLASK_DEBUG=false
       - CAMERA_LOGS_PATH=/app/camera_logs
       - COMPREFACE_API_URL=http://compreface-api:8080
-      - COMPREFACE_API_KEY=00000000-0000-0000-0000-000000000002
+      - COMPREFACE_API_KEY=7d7b2220-e198-407f-bd01-8ea7afa81172
     volumes:
       - ./camera-service/logs:/app/camera_logs:ro
     networks:

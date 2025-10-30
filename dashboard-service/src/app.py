@@ -16,6 +16,7 @@ from typing import List, Dict, Any, Optional
 import json
 import requests
 import base64
+from urllib.parse import quote
 
 # Configure logging
 logging.basicConfig(
@@ -832,8 +833,9 @@ def get_personnel_list():
         # For each subject, get metadata
         personnel_list = []
         for subject in subjects:
-            # Get subject details
-            detail_url = f"{COMPREFACE_API_URL}/api/v1/recognition/subjects/{subject}"
+            # Get subject details (URL encode the subject name for spaces, etc.)
+            encoded_subject = quote(subject, safe='')
+            detail_url = f"{COMPREFACE_API_URL}/api/v1/recognition/subjects/{encoded_subject}"
             detail_response = requests.get(detail_url, headers=headers)
 
             if detail_response.status_code == 200:

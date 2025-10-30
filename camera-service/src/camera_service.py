@@ -372,6 +372,7 @@ class FaceRecognitionService:
                     metadata = subject_metadata
 
                 if similarity >= self.config.SIMILARITY_THRESHOLD:
+                    # HIGH similarity - Authorized access
                     authorized.append({
                         'subject_name': subject_name,
                         'similarity': similarity,
@@ -384,17 +385,30 @@ class FaceRecognitionService:
                         'metadata': metadata
                     })
                     logger.info(f"✓ Authorized: {subject_name} ({similarity:.2%}) - {metadata.get('department', 'N/A')}")
-                else:
+                elif similarity >= 0.50:
+                    # MEDIUM similarity (50-87%) - Log name for investigation but unauthorized
                     unauthorized.append({
                         'subject_name': subject_name,
                         'similarity': similarity,
                         'box': box,
-                        'reason': 'Low similarity',
+                        'reason': f'Low similarity to {subject_name}',
                         'department': metadata.get('department'),
                         'sub_department': metadata.get('sub_department'),
                         'metadata': metadata
                     })
-                    logger.warning(f"✗ Low similarity: {subject_name} ({similarity:.2%})")
+                    logger.warning(f"✗ Low similarity: {subject_name} ({similarity:.2%}) - Possible match but below threshold")
+                else:
+                    # VERY LOW similarity (<50%) - Treat as unknown person
+                    unauthorized.append({
+                        'subject_name': None,
+                        'similarity': similarity,
+                        'box': box,
+                        'reason': 'Unknown person (very low similarity)',
+                        'department': None,
+                        'sub_department': None,
+                        'metadata': {}
+                    })
+                    logger.warning(f"✗ Unknown person: Very low similarity ({similarity:.2%}) to {subject_name}, treating as unknown")
             else:
                 # No face recognized - unauthorized
                 unauthorized.append({

@@ -20,6 +20,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application source code
 COPY src/ /app/
 
+# Copy database migrations
+COPY migrations/ /app/migrations/
+
 # Create static directories if they don't exist
 RUN mkdir -p /app/static/css /app/static/js /app/static/img
 

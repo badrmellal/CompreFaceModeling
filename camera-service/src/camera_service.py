@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-1BIP Camera Integration Service
+Mellal Camera Integration Service
 Connects Hikvision cameras to CompreFace for real-time face recognition
 Supports multi-face detection and unauthorized access alerts
 """

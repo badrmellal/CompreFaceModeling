@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-1BIP Dashboard Service
+ Dashboard Service
 Real-time monitoring interface for face recognition and attendance system
 Runs completely offline on local network
 """
@@ -1030,17 +1030,16 @@ def delete_personnel(subject):
 @app.route('/api/personnel/departments/config', methods=['GET'])
 def get_department_config():
     """Get department/sub-department configuration for forms"""
-    # 1BIP - Structure organisationnelle des Troupes Aéroportées Marocaines
-    # Départements: Bataillons et Unités de la 1ère Brigade d'Infanterie Parachutiste
+    #  Structure organisationnelle 
     departments = [
-        '1BCAS',    # 1er Bataillon de Commandement et d'Appui au Service
-        '10BPAG',   # 10ème Bataillon Parachutiste d'Assaut Génie
-        '11BPAG',   # 11ème Bataillon Parachutiste d'Assaut Génie
-        '12BPAG',   # 12ème Bataillon Parachutiste d'Assaut Génie
-        '13BIP',    # 13ème Bataillon d'Infanterie Parachutiste
-        '14BIP',    # 14ème Bataillon d'Infanterie Parachutiste
-        '15BIP',    # 15ème Bataillon d'Infanterie Parachutiste
-        'CITAP',    # Centre d'Instruction des Troupes Aéroportées
+        '1BCAS',    
+        '10BPAG',   
+        '11BPAG',   
+        '12BPAG',   
+        '13BIP',    
+        '14BIP',    
+        '15BIP',    
+        'CITAP',    
         'VISITORS'  # Visiteurs
     ]
 

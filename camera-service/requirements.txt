@@ -1,4 +1,4 @@
-# 1BIP Camera Service Dependencies
+# Camera Service Dependencies
 
 # OpenCV for video capture and image processing
 opencv-python==4.8.1.78

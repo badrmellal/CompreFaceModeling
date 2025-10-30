@@ -1,6 +1,6 @@
-# 1BIP Dashboard Service
+# MELLAL BADR Dashboard Service
 
-Real-time monitoring and analytics dashboard for the 1BIP Face Recognition & Attendance System.
+Real-time monitoring and analytics dashboard for the our Face Recognition & Attendance System.
 
 ## Features
 
@@ -289,7 +289,7 @@ docker-compose logs dashboard-service
 
 **Expected output:**
 ```
-Starting 1BIP Dashboard Service on port 5000
+Starting Dashboard Service on port 5000
 Database: compreface-postgres-db:5432/frs_1bip
 Dashboard will be available at http://localhost:5000
 ```
@@ -487,15 +487,6 @@ curl http://localhost:5000/health
 }
 ```
 
-### Monitor Resource Usage
-
-```bash
-# CPU and memory usage
-docker stats 1bip-dashboard
-
-# Disk usage
-docker exec 1bip-dashboard df -h
-```
 
 ---
 
@@ -510,5 +501,4 @@ For issues:
 
 **Version:** 1.0.0
 **Last Updated:** 2025-10-21
-**For:** 1BIP Organization
-**License:** Part of 1BIP Face Recognition System
+

@@ -1,17 +1,4 @@
-# 🚨 Résolution Problème RAM - 1BIP CompreFace M3 Max
 
-## 🔍 Diagnostic de Votre Problème
-
-Vous voyez:
-```
-compreface-core    Up XX minutes (unhealthy)
-```
-
-**Logs s'arrêtent à:**
-```
-*** Operational MODE: preforking+threaded ***
-(puis plus rien...)
-```
 
 ### Cause: **Mémoire Insuffisante**
 
@@ -244,23 +231,4 @@ Améliore les performances d'émulation de ~30%.
 - [ ] Tester UI: http://localhost:8000
 - [ ] Tester Dashboard: http://localhost:5000
 
-## 📞 Si Problème Persiste
 
-Générer un rapport diagnostic:
-
-```bash
-./DIAGNOSTIC_COMPLET.sh > rapport_$(date +%Y%m%d_%H%M%S).txt
-```
-
-Partagez le rapport `rapport_XXXXXXXXX_XXXXXX.txt`
-
----
-
-## 🇲🇦 1BIP - 1ère Brigade d'Infanterie Parachutiste
-### Forces Armées Royales Marocaines - Troupes Aéroportées
-
-**CLASSIFIÉ - USAGE MILITAIRE UNIQUEMENT**
-
----
-
-*Guide généré avec [Claude Code](https://claude.com/claude-code)*

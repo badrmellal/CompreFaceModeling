@@ -286,8 +286,9 @@ class AlertManager:
 class FaceRecognitionService:
     """Handles face recognition via CompreFace API"""
 
-    def __init__(self, config: Config):
+    def __init__(self, config: Config, db_manager: 'DatabaseManager'):
         self.config = config
+        self.db_manager = db_manager
         self.session = requests.Session()
         self.session.headers.update({
             'x-api-key': self.config.COMPREFACE_API_KEY
@@ -357,19 +358,8 @@ class FaceRecognitionService:
                 subject_name = top_subject.get('subject')
                 similarity = top_subject.get('similarity', 0)
 
-                # Extract metadata (department, sub_department, rank, etc.)
-                metadata = {}
-                subject_metadata = top_subject.get('metadata', {})
-
-                # If metadata is a string (JSON), parse it
-                if isinstance(subject_metadata, str):
-                    try:
-                        metadata = json.loads(subject_metadata)
-                    except Exception as e:
-                        logger.warning(f"Failed to parse metadata JSON: {e}")
-                        metadata = {}
-                elif isinstance(subject_metadata, dict):
-                    metadata = subject_metadata
+                # Fetch metadata from OUR PostgreSQL database (not CompreFace!)
+                metadata = self._fetch_personnel_metadata(subject_name)
 
                 if similarity >= self.config.SIMILARITY_THRESHOLD:
                     # HIGH similarity - Authorized access
@@ -421,6 +411,35 @@ class FaceRecognitionService:
 
         return authorized, unauthorized
 
+    def _fetch_personnel_metadata(self, subject_name: str) -> Dict:
+        """
+        Fetch personnel metadata from our PostgreSQL database
+        Returns: Dict with department, sub_department, rank
+        """
+        try:
+            # Use the existing database manager connection
+            with self.db_manager.connection.cursor() as cursor:
+                cursor.execute("""
+                    SELECT department, sub_department, rank
+                    FROM personnel_metadata
+                    WHERE subject_name = %s
+                """, (subject_name,))
+
+                row = cursor.fetchone()
+
+                if row:
+                    return {
+                        'department': row[0],
+                        'sub_department': row[1],
+                        'rank': row[2]
+                    }
+                else:
+                    logger.debug(f"No metadata found for {subject_name} in personnel_metadata table")
+                    return {}
+        except Exception as e:
+            logger.error(f"Failed to fetch metadata for {subject_name}: {e}")
+            return {}
+
 
 class CameraService:
     """Main camera service for processing video stream"""
@@ -429,7 +448,7 @@ class CameraService:
         self.config = config
         self.db_manager = DatabaseManager(config)
         self.alert_manager = AlertManager(config)
-        self.recognition_service = FaceRecognitionService(config)
+        self.recognition_service = FaceRecognitionService(config, self.db_manager)
         self.running = False
         self.frame_count = 0
         self.latest_frame = None  # Store latest frame for streaming

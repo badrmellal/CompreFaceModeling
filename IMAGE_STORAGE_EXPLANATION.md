@@ -1,4 +1,4 @@
-# Image Storage Explanation - 1BIP System
+# Image Storage Explanation 
 
 ## 📊 Where Are Images Stored?
 

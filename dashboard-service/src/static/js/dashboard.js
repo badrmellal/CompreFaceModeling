@@ -112,6 +112,7 @@ function loadTabData(tabName) {
             refreshUnauthorized();
             break;
         case 'gallery':
+            loadGalleryDepartments(); // Load department options for filters
             refreshGallery();
             break;
         case 'cameras':
@@ -867,6 +868,35 @@ async function loadDepartments() {
     }
 }
 
+async function loadGalleryDepartments() {
+    //Load departments from database to populate gallery filter dropdowns
+    try {
+        const response = await fetch(`${CONFIG.API_BASE_URL}/api/departments`);
+        const data = await response.json();
+
+        // Populate department dropdown
+        const deptSelect = document.getElementById('filterDepartment');
+        if (deptSelect && data.departments) {
+            deptSelect.innerHTML = '<option value="">Tous les bataillons</option>';
+            data.departments.forEach(dept => {
+                const option = document.createElement('option');
+                option.value = dept;
+                option.textContent = dept;
+                deptSelect.appendChild(option);
+            });
+        }
+
+        // Store sub-departments data globally for cascade
+        if (data.sub_departments) {
+            window.subDepartmentsData = data.sub_departments;
+        }
+
+        console.log('Gallery filter departments loaded:', data.departments);
+    } catch (error) {
+        console.error('Error loading gallery departments:', error);
+    }
+}
+
 async function refreshGallery(page = 1) {
     //Load gallery images with current filters
     const imageGrid = document.getElementById('galleryImagesGrid');
@@ -997,7 +1027,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const selectedDept = this.value;
 
             // Clear sub-department dropdown
-            subDeptSelect.innerHTML = '<option value="">Tous les sous-départements</option>';
+            subDeptSelect.innerHTML = '<option value="">Toutes les compagnies</option>';
 
             // Populate with matching sub-departments
             if (selectedDept && window.subDepartmentsData && window.subDepartmentsData[selectedDept]) {

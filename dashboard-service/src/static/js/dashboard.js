@@ -574,6 +574,7 @@ async function generateReport() {
                     <td>${formatTime(record.first_entry)}</td>
                     <td>${formatTime(record.last_entry)}</td>
                     <td>${record.entries_count}</td>
+                    <td><strong>${record.avg_similarity ? (record.avg_similarity * 100).toFixed(1) + '%' : '-'}</strong></td>
                     <td>${statusBadge}</td>
                 </tr>
             `;
@@ -588,7 +589,7 @@ async function generateReport() {
 
     } catch (error) {
         console.error('Error generating report:', error);
-        tableBody.innerHTML = '<tr><td colspan="8" class="empty">Erreur lors de la génération du rapport</td></tr>';
+        tableBody.innerHTML = '<tr><td colspan="9" class="empty">Erreur lors de la génération du rapport</td></tr>';
     }
 }
 
@@ -621,7 +622,7 @@ function exportReport() {
         .then(data => {
             const csv = convertToCSV(data, [
                 'date', 'subject_name', 'department', 'sub_department',
-                'first_entry', 'last_entry', 'entries_count', 'is_authorized'
+                'first_entry', 'last_entry', 'entries_count', 'avg_similarity', 'is_authorized'
             ]);
             downloadCSV(csv, `rapport_1bip_${startDate}_to_${endDate}.csv`);
         })

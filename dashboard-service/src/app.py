@@ -1029,6 +1029,61 @@ def add_personnel():
         return jsonify({'error': str(e)}), 500
 
 
+@app.route('/api/personnel/<subject>', methods=['PUT'])
+def update_personnel(subject):
+    """Update personnel metadata (department, sub_department, rank)"""
+    try:
+        data = request.get_json()
+
+        department = data.get('department', '').strip()
+        sub_department = data.get('sub_department', '').strip()
+        rank = data.get('rank', '').strip()
+
+        if not department:
+            return jsonify({'error': 'Bataillon / Unité requis'}), 400
+
+        # Verify subject exists in CompreFace
+        headers = {'x-api-key': COMPREFACE_API_KEY}
+        check_url = f"{COMPREFACE_API_URL}/api/v1/recognition/subjects/{subject}"
+        check_response = requests.get(check_url, headers=headers)
+
+        if check_response.status_code != 200:
+            return jsonify({
+                'error': f'Personnel "{subject}" not found in CompreFace'
+            }), 404
+
+        # Update metadata in our database
+        with DatabaseConnection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("""
+                    UPDATE personnel_metadata
+                    SET department = %s,
+                        sub_department = %s,
+                        rank = %s,
+                        updated_date = CURRENT_TIMESTAMP
+                    WHERE subject_name = %s
+                """, (department, sub_department, rank, subject))
+
+                if cursor.rowcount == 0:
+                    # Subject exists in CompreFace but not in our DB, insert it
+                    cursor.execute("""
+                        INSERT INTO personnel_metadata (subject_name, department, sub_department, rank, created_date)
+                        VALUES (%s, %s, %s, %s, CURRENT_TIMESTAMP)
+                    """, (subject, department, sub_department, rank))
+
+                conn.commit()
+                logger.info(f"Updated metadata for {subject}: dept={department}, sub_dept={sub_department}, rank={rank}")
+
+        return jsonify({
+            'success': True,
+            'message': f'Personnel "{subject}" updated successfully'
+        }), 200
+
+    except Exception as e:
+        logger.error(f"Error updating personnel: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route('/api/personnel/<subject>', methods=['DELETE'])
 def delete_personnel(subject):
     """Delete personnel from CompreFace and our metadata DB"""

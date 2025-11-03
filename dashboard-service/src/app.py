@@ -269,6 +269,7 @@ def get_attendance_report():
                         MIN(timestamp) as first_entry,
                         MAX(timestamp) as last_entry,
                         COUNT(*) as entries_count,
+                        AVG(similarity) as avg_similarity,
                         is_authorized
                     FROM access_logs
                     WHERE subject_name IS NOT NULL

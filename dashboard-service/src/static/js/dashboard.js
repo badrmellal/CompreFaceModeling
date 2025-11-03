@@ -112,6 +112,7 @@ function loadTabData(tabName) {
             refreshUnauthorized();
             break;
         case 'gallery':
+            loadGalleryDepartments(); // Load department options for filters
             refreshGallery();
             break;
         case 'cameras':
@@ -573,6 +574,7 @@ async function generateReport() {
                     <td>${formatTime(record.first_entry)}</td>
                     <td>${formatTime(record.last_entry)}</td>
                     <td>${record.entries_count}</td>
+                    <td><strong>${record.avg_similarity ? (record.avg_similarity * 100).toFixed(1) + '%' : '-'}</strong></td>
                     <td>${statusBadge}</td>
                 </tr>
             `;
@@ -587,7 +589,7 @@ async function generateReport() {
 
     } catch (error) {
         console.error('Error generating report:', error);
-        tableBody.innerHTML = '<tr><td colspan="8" class="empty">Erreur lors de la génération du rapport</td></tr>';
+        tableBody.innerHTML = '<tr><td colspan="9" class="empty">Erreur lors de la génération du rapport</td></tr>';
     }
 }
 
@@ -620,7 +622,7 @@ function exportReport() {
         .then(data => {
             const csv = convertToCSV(data, [
                 'date', 'subject_name', 'department', 'sub_department',
-                'first_entry', 'last_entry', 'entries_count', 'is_authorized'
+                'first_entry', 'last_entry', 'entries_count', 'avg_similarity', 'is_authorized'
             ]);
             downloadCSV(csv, `rapport_1bip_${startDate}_to_${endDate}.csv`);
         })
@@ -867,6 +869,35 @@ async function loadDepartments() {
     }
 }
 
+async function loadGalleryDepartments() {
+    //Load departments from database to populate gallery filter dropdowns
+    try {
+        const response = await fetch(`${CONFIG.API_BASE_URL}/api/departments`);
+        const data = await response.json();
+
+        // Populate department dropdown
+        const deptSelect = document.getElementById('filterDepartment');
+        if (deptSelect && data.departments) {
+            deptSelect.innerHTML = '<option value="">Tous les bataillons</option>';
+            data.departments.forEach(dept => {
+                const option = document.createElement('option');
+                option.value = dept;
+                option.textContent = dept;
+                deptSelect.appendChild(option);
+            });
+        }
+
+        // Store sub-departments data globally for cascade
+        if (data.sub_departments) {
+            window.subDepartmentsData = data.sub_departments;
+        }
+
+        console.log('Gallery filter departments loaded:', data.departments);
+    } catch (error) {
+        console.error('Error loading gallery departments:', error);
+    }
+}
+
 async function refreshGallery(page = 1) {
     //Load gallery images with current filters
     const imageGrid = document.getElementById('galleryImagesGrid');
@@ -997,7 +1028,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const selectedDept = this.value;
 
             // Clear sub-department dropdown
-            subDeptSelect.innerHTML = '<option value="">Tous les sous-départements</option>';
+            subDeptSelect.innerHTML = '<option value="">Toutes les compagnies</option>';
 
             // Populate with matching sub-departments
             if (selectedDept && window.subDepartmentsData && window.subDepartmentsData[selectedDept]) {

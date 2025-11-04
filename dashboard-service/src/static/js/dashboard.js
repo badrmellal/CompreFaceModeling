@@ -444,6 +444,10 @@ async function refreshCameraStatus() {
                         <span class="camera-info-value">${escapeHtml(camera.camera_location || 'N/A')}</span>
                     </div>
                     <div class="camera-info-item">
+                        <span class="camera-info-label">Camera IP:</span>
+                        <span class="camera-info-value">${camera.camera_ip || 'N/A'}</span>
+                    </div>
+                    <div class="camera-info-item">
                         <span class="camera-info-label">Last Activity:</span>
                         <span class="camera-info-value">${formatTime(camera.last_activity)}</span>
                     </div>
@@ -455,6 +459,12 @@ async function refreshCameraStatus() {
                         <span class="camera-info-label">Unauthorized (1h):</span>
                         <span class="camera-info-value">${camera.unauthorized_last_hour}</span>
                     </div>
+                    ${camera.status_reason ? `
+                    <div class="camera-info-item" style="grid-column: 1 / -1; margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid rgba(255,255,255,0.1);">
+                        <span class="camera-info-label">Status:</span>
+                        <span class="camera-info-value" style="font-style: italic; opacity: 0.9;">${escapeHtml(camera.status_reason)}</span>
+                    </div>
+                    ` : ''}
                 </div>
             </div>
         `).join('');

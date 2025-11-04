@@ -17,6 +17,8 @@ import json
 import requests
 import base64
 from urllib.parse import quote
+import subprocess
+import re
 
 # Configure logging
 logging.basicConfig(
@@ -315,10 +317,52 @@ def get_attendance_report():
         return jsonify({'error': str(e)}), 500
 
 
+def ping_camera(ip_address: str, timeout: int = 2) -> bool:
+    """
+    Ping a camera IP address to check network connectivity
+    Returns True if camera responds to ping, False otherwise
+    """
+    try:
+        # Use subprocess to ping (works on both Linux and Windows)
+        # -c 1: send 1 packet
+        # -W timeout: wait timeout seconds for response
+        result = subprocess.run(
+            ['ping', '-c', '1', '-W', str(timeout), ip_address],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            timeout=timeout + 1
+        )
+        return result.returncode == 0
+    except Exception as e:
+        logger.error(f"Error pinging camera {ip_address}: {e}")
+        return False
+
+
+def extract_camera_ip_from_rtsp(rtsp_url: str) -> Optional[str]:
+    """
+    Extract IP address from RTSP URL
+    Example: rtsp://admin:password@192.168.1.73:554/... -> 192.168.1.73
+    """
+    try:
+        # Pattern to match IP address in RTSP URL
+        pattern = r'@?([\d]{1,3}\.[\d]{1,3}\.[\d]{1,3}\.[\d]{1,3})'
+        match = re.search(pattern, rtsp_url)
+        if match:
+            return match.group(1)
+        return None
+    except Exception as e:
+        logger.error(f"Error extracting IP from RTSP URL: {e}")
+        return None
+
+
 @app.route('/api/camera/status')
 def get_camera_status():
-    """Get status of all cameras"""
+    """Get status of all cameras with network connectivity check"""
     try:
+        # Get camera RTSP URL from environment
+        camera_rtsp_url = os.getenv('CAMERA_RTSP_URL', '')
+        camera_ip = extract_camera_ip_from_rtsp(camera_rtsp_url) if camera_rtsp_url else None
+
         with DatabaseConnection() as conn:
             with conn.cursor(cursor_factory=RealDictCursor) as cursor:
                 cursor.execute("""
@@ -336,19 +380,58 @@ def get_camera_status():
 
                 cameras = cursor.fetchall()
 
+                # If no cameras in DB but we have RTSP URL configured, add placeholder
+                if not cameras and camera_rtsp_url:
+                    camera_name = os.getenv('CAMERA_NAME', '1BIP Portail Principal')
+                    camera_location = os.getenv('CAMERA_LOCATION', '1BIP')
+                    cameras = [{
+                        'camera_name': camera_name,
+                        'camera_location': camera_location,
+                        'last_activity': None,
+                        'detections_last_hour': 0,
+                        'unauthorized_last_hour': 0
+                    }]
+
                 for camera in cameras:
-                    camera['last_activity'] = camera['last_activity'].isoformat()
-
-                    # Determine status based on last activity
-                    last_activity = datetime.fromisoformat(camera['last_activity'])
-                    time_diff = datetime.now() - last_activity.replace(tzinfo=None)
-
-                    if time_diff.total_seconds() < 300:  # 5 minutes
-                        camera['status'] = 'online'
-                    elif time_diff.total_seconds() < 600:  # 10 minutes
-                        camera['status'] = 'warning'
+                    # Format last activity if exists
+                    if camera['last_activity']:
+                        camera['last_activity'] = camera['last_activity'].isoformat()
+                        last_activity = datetime.fromisoformat(camera['last_activity'])
+                        time_diff = datetime.now() - last_activity.replace(tzinfo=None)
+                        db_status_seconds = time_diff.total_seconds()
                     else:
-                        camera['status'] = 'offline'
+                        db_status_seconds = float('inf')
+
+                    # Check actual camera connectivity if IP available
+                    camera_reachable = False
+                    if camera_ip:
+                        logger.info(f"Checking connectivity to camera at {camera_ip}...")
+                        camera_reachable = ping_camera(camera_ip, timeout=2)
+                        logger.info(f"Camera {camera_ip} reachable: {camera_reachable}")
+
+                    # Determine status based on BOTH connectivity AND database activity
+                    if camera_reachable:
+                        # Camera is online and reachable
+                        if db_status_seconds < 300:  # Activity within 5 minutes
+                            camera['status'] = 'online'
+                            camera['status_reason'] = 'Camera reachable and actively detecting'
+                        elif db_status_seconds < 3600:  # Activity within 1 hour
+                            camera['status'] = 'warning'
+                            camera['status_reason'] = 'Camera reachable but no recent detections'
+                        else:
+                            camera['status'] = 'warning'
+                            camera['status_reason'] = 'Camera reachable but service may not be running'
+                    else:
+                        # Camera is not reachable via ping
+                        if db_status_seconds < 300:  # Recent activity despite unreachable
+                            camera['status'] = 'warning'
+                            camera['status_reason'] = 'Recent activity but camera not responding to ping'
+                        else:
+                            camera['status'] = 'offline'
+                            camera['status_reason'] = f'Camera not reachable at {camera_ip or "unknown IP"}'
+
+                    # Add camera IP to response for debugging
+                    camera['camera_ip'] = camera_ip
 
                 return jsonify(cameras)
 
@@ -1026,6 +1109,61 @@ def add_personnel():
 
     except Exception as e:
         logger.error(f"Error adding personnel: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/personnel/<subject>', methods=['PUT'])
+def update_personnel(subject):
+    """Update personnel metadata (department, sub_department, rank)"""
+    try:
+        data = request.get_json()
+
+        department = data.get('department', '').strip()
+        sub_department = data.get('sub_department', '').strip()
+        rank = data.get('rank', '').strip()
+
+        if not department:
+            return jsonify({'error': 'Bataillon / Unité requis'}), 400
+
+        # Verify subject exists in CompreFace
+        headers = {'x-api-key': COMPREFACE_API_KEY}
+        check_url = f"{COMPREFACE_API_URL}/api/v1/recognition/subjects/{subject}"
+        check_response = requests.get(check_url, headers=headers)
+
+        if check_response.status_code != 200:
+            return jsonify({
+                'error': f'Personnel "{subject}" not found in CompreFace'
+            }), 404
+
+        # Update metadata in our database
+        with DatabaseConnection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("""
+                    UPDATE personnel_metadata
+                    SET department = %s,
+                        sub_department = %s,
+                        rank = %s,
+                        updated_date = CURRENT_TIMESTAMP
+                    WHERE subject_name = %s
+                """, (department, sub_department, rank, subject))
+
+                if cursor.rowcount == 0:
+                    # Subject exists in CompreFace but not in our DB, insert it
+                    cursor.execute("""
+                        INSERT INTO personnel_metadata (subject_name, department, sub_department, rank, created_date)
+                        VALUES (%s, %s, %s, %s, CURRENT_TIMESTAMP)
+                    """, (subject, department, sub_department, rank))
+
+                conn.commit()
+                logger.info(f"Updated metadata for {subject}: dept={department}, sub_dept={sub_department}, rank={rank}")
+
+        return jsonify({
+            'success': True,
+            'message': f'Personnel "{subject}" updated successfully'
+        }), 200
+
+    except Exception as e:
+        logger.error(f"Error updating personnel: {e}")
         return jsonify({'error': str(e)}), 500
 
 

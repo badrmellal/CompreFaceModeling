@@ -444,6 +444,10 @@ async function refreshCameraStatus() {
                         <span class="camera-info-value">${escapeHtml(camera.camera_location || 'N/A')}</span>
                     </div>
                     <div class="camera-info-item">
+                        <span class="camera-info-label">Camera IP:</span>
+                        <span class="camera-info-value">${camera.camera_ip || 'N/A'}</span>
+                    </div>
+                    <div class="camera-info-item">
                         <span class="camera-info-label">Last Activity:</span>
                         <span class="camera-info-value">${formatTime(camera.last_activity)}</span>
                     </div>
@@ -455,6 +459,12 @@ async function refreshCameraStatus() {
                         <span class="camera-info-label">Unauthorized (1h):</span>
                         <span class="camera-info-value">${camera.unauthorized_last_hour}</span>
                     </div>
+                    ${camera.status_reason ? `
+                    <div class="camera-info-item" style="grid-column: 1 / -1; margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid rgba(255,255,255,0.1);">
+                        <span class="camera-info-label">Status:</span>
+                        <span class="camera-info-value" style="font-style: italic; opacity: 0.9;">${escapeHtml(camera.status_reason)}</span>
+                    </div>
+                    ` : ''}
                 </div>
             </div>
         `).join('');
@@ -1114,6 +1124,8 @@ function changeUnauthorizedPage(direction) {
 // Global flags to prevent multiple event listener attachments and submissions
 let personnelFormInitialized = false;
 let isSubmittingPersonnel = false;
+let isEditMode = false;
+let editingSubject = null;
 
 // Department/Sub-department configuration
 // Note: Departments are now hardcoded in HTML for 1BIP military structure
@@ -1183,64 +1195,116 @@ async function setupPersonnelForm() {
                 return;
             }
 
-            // Validate photos
-            const photoInput = document.getElementById('personnelPhotos');
-            if (photoInput.files.length < 3) {
-                showFormMessage('Veuillez sélectionner au moins 3 photos du visage', 'error');
-                return;
-            }
+            // Check if we're in edit mode
+            if (isEditMode) {
+                // EDIT MODE - Update existing personnel metadata
+                isSubmittingPersonnel = true;
+                const submitBtn = form.querySelector('button[type="submit"]');
+                const originalText = submitBtn.textContent;
+                submitBtn.disabled = true;
+                submitBtn.textContent = '⏳ Mise à jour...';
 
-            // Set submission flag and show loading state
-            isSubmittingPersonnel = true;
-            const submitBtn = form.querySelector('button[type="submit"]');
-            const originalText = submitBtn.textContent;
-            submitBtn.disabled = true;
-            submitBtn.textContent = '⏳ Ajout en cours...';
+                try {
+                    const updateData = {
+                        department: document.getElementById('personnelDepartment').value,
+                        sub_department: document.getElementById('personnelSubDepartment').value,
+                        rank: document.getElementById('personnelRank').value
+                    };
 
-            try {
-                // Prepare form data
-                const formData = new FormData(form);
+                    const response = await fetch(`${CONFIG.API_BASE_URL}/api/personnel/${encodeURIComponent(editingSubject)}`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(updateData)
+                    });
 
-                // Submit to API
-                const response = await fetch(`${CONFIG.API_BASE_URL}/api/personnel`, {
-                    method: 'POST',
-                    body: formData
-                });
+                    const result = await response.json();
 
-                const result = await response.json();
+                    if (response.ok && result.success) {
+                        showFormMessage(`✅ ${result.message}`, 'success');
 
-                if (response.ok && result.success) {
-                    showFormMessage(
-                        `✅ ${result.message} (${result.uploaded_photos}/${result.total_photos} photos téléchargées)`,
-                        'success'
-                    );
+                        // Exit edit mode
+                        cancelEdit();
 
-                    // Reset form
-                    form.reset();
-                    document.getElementById('photoPreview').innerHTML = '';
+                        // Refresh personnel list
+                        setTimeout(() => {
+                            refreshPersonnelList();
+                        }, 1000);
+                    } else {
+                        showFormMessage(`❌ Erreur: ${result.error}`, 'error');
+                    }
 
-                    // Refresh personnel list
-                    setTimeout(() => {
-                        refreshPersonnelList();
-                    }, 1000);
-                } else if (response.status === 409) {
-                    // Subject already exists
-                    showFormMessage(
-                        `❌ ${result.error}\n💡 Conseil: Vérifiez la liste du personnel ci-dessous ou utilisez un nom différent.`,
-                        'error'
-                    );
-                } else {
-                    showFormMessage(`❌ Erreur: ${result.error}`, 'error');
+                } catch (error) {
+                    console.error('Error updating personnel:', error);
+                    showFormMessage('❌ Erreur lors de la mise à jour du personnel', 'error');
+                } finally {
+                    isSubmittingPersonnel = false;
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = originalText;
                 }
 
-            } catch (error) {
-                console.error('Error adding personnel:', error);
-                showFormMessage('❌ Erreur lors de l\'ajout du personnel', 'error');
-            } finally {
-                // Reset submission flag and button state
-                isSubmittingPersonnel = false;
-                submitBtn.disabled = false;
-                submitBtn.textContent = originalText;
+            } else {
+                // ADD MODE - Add new personnel with photos
+                // Validate photos
+                const photoInput = document.getElementById('personnelPhotos');
+                if (photoInput.files.length < 3) {
+                    showFormMessage('Veuillez sélectionner au moins 3 photos du visage', 'error');
+                    return;
+                }
+
+                // Set submission flag and show loading state
+                isSubmittingPersonnel = true;
+                const submitBtn = form.querySelector('button[type="submit"]');
+                const originalText = submitBtn.textContent;
+                submitBtn.disabled = true;
+                submitBtn.textContent = '⏳ Ajout en cours...';
+
+                try {
+                    // Prepare form data
+                    const formData = new FormData(form);
+
+                    // Submit to API
+                    const response = await fetch(`${CONFIG.API_BASE_URL}/api/personnel`, {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    const result = await response.json();
+
+                    if (response.ok && result.success) {
+                        showFormMessage(
+                            `✅ ${result.message} (${result.uploaded_photos}/${result.total_photos} photos téléchargées)`,
+                            'success'
+                        );
+
+                        // Reset form
+                        form.reset();
+                        document.getElementById('photoPreview').innerHTML = '';
+
+                        // Refresh personnel list
+                        setTimeout(() => {
+                            refreshPersonnelList();
+                        }, 1000);
+                    } else if (response.status === 409) {
+                        // Subject already exists
+                        showFormMessage(
+                            `❌ ${result.error}\n💡 Conseil: Vérifiez la liste du personnel ci-dessous ou utilisez un nom différent.`,
+                            'error'
+                        );
+                    } else {
+                        showFormMessage(`❌ Erreur: ${result.error}`, 'error');
+                    }
+
+                } catch (error) {
+                    console.error('Error adding personnel:', error);
+                    showFormMessage('❌ Erreur lors de l\'ajout du personnel', 'error');
+                } finally {
+                    // Reset submission flag and button state
+                    isSubmittingPersonnel = false;
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = originalText;
+                }
             }
         });
 
@@ -1263,6 +1327,97 @@ function showFormMessage(message, type) {
     setTimeout(() => {
         messageDiv.style.display = 'none';
     }, 5000);
+}
+
+// Edit personnel - populate form with existing data
+function editPersonnel(subject, department, subDepartment, rank) {
+    // Switch to personnel tab if not already there
+    const personnelTab = document.querySelector('.tab-btn[data-tab="personnel"]');
+    if (personnelTab) {
+        personnelTab.click();
+    }
+
+    // Scroll to form
+    setTimeout(() => {
+        const form = document.getElementById('addPersonnelForm');
+        if (!form) return;
+
+        // Set edit mode
+        isEditMode = true;
+        editingSubject = subject;
+
+        // Populate form fields
+        document.getElementById('personnelName').value = subject;
+        document.getElementById('personnelName').readOnly = true; // Name cannot be changed
+        document.getElementById('personnelDepartment').value = department;
+        document.getElementById('personnelSubDepartment').value = subDepartment;
+        document.getElementById('personnelRank').value = rank;
+
+        // Hide photo upload (not needed for edit)
+        const photoGroup = document.getElementById('personnelPhotos').closest('.form-group');
+        if (photoGroup) {
+            photoGroup.style.display = 'none';
+        }
+
+        // Change submit button text
+        const submitBtn = form.querySelector('button[type="submit"]');
+        if (submitBtn) {
+            submitBtn.textContent = '✏️ Mettre à Jour Personnel';
+            submitBtn.className = 'btn btn-primary';
+        }
+
+        // Add cancel button if not exists
+        let cancelBtn = form.querySelector('.btn-cancel-edit');
+        if (!cancelBtn) {
+            cancelBtn = document.createElement('button');
+            cancelBtn.type = 'button';
+            cancelBtn.className = 'btn btn-secondary btn-cancel-edit';
+            cancelBtn.textContent = '❌ Annuler';
+            cancelBtn.onclick = cancelEdit;
+            submitBtn.parentNode.insertBefore(cancelBtn, submitBtn.nextSibling);
+        }
+
+        // Show message
+        showFormMessage(`✏️ Mode édition: Modification de "${subject}"`, 'info');
+
+        // Scroll to form
+        form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
+}
+
+// Cancel edit mode
+function cancelEdit() {
+    const form = document.getElementById('addPersonnelForm');
+    if (!form) return;
+
+    // Reset edit mode
+    isEditMode = false;
+    editingSubject = null;
+
+    // Reset form
+    form.reset();
+    document.getElementById('personnelName').readOnly = false;
+
+    // Show photo upload again
+    const photoGroup = document.getElementById('personnelPhotos').closest('.form-group');
+    if (photoGroup) {
+        photoGroup.style.display = 'block';
+    }
+
+    // Reset submit button
+    const submitBtn = form.querySelector('button[type="submit"]');
+    if (submitBtn) {
+        submitBtn.textContent = '✅ Ajouter Personnel';
+    }
+
+    // Remove cancel button
+    const cancelBtn = form.querySelector('.btn-cancel-edit');
+    if (cancelBtn) {
+        cancelBtn.remove();
+    }
+
+    // Hide message
+    document.getElementById('formMessage').style.display = 'none';
 }
 
 // Load personnel list
@@ -1298,6 +1453,9 @@ async function refreshPersonnelList() {
                 <td>${escapeHtml(person.sub_department || '-')}</td>
                 <td>${person.created_date ? new Date(person.created_date).toLocaleDateString('fr-FR') : '-'}</td>
                 <td>
+                    <button class="btn btn-primary btn-sm" onclick="editPersonnel('${escapeHtml(person.subject)}', '${escapeHtml(person.department || '')}', '${escapeHtml(person.sub_department || '')}', '${escapeHtml(person.rank || '')}')">
+                        ✏️ Modifier
+                    </button>
                     <button class="btn btn-danger btn-sm" onclick="deletePersonnel('${escapeHtml(person.subject)}')">
                         🗑️ Supprimer
                     </button>

@@ -17,7 +17,6 @@ import json
 import requests
 import base64
 from urllib.parse import quote
-import subprocess
 import re
 
 # Configure logging
@@ -317,27 +316,6 @@ def get_attendance_report():
         return jsonify({'error': str(e)}), 500
 
 
-def ping_camera(ip_address: str, timeout: int = 2) -> bool:
-    """
-    Ping a camera IP address to check network connectivity
-    Returns True if camera responds to ping, False otherwise
-    """
-    try:
-        # Use subprocess to ping (works on both Linux and Windows)
-        # -c 1: send 1 packet
-        # -W timeout: wait timeout seconds for response
-        result = subprocess.run(
-            ['ping', '-c', '1', '-W', str(timeout), ip_address],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            timeout=timeout + 1
-        )
-        return result.returncode == 0
-    except Exception as e:
-        logger.error(f"Error pinging camera {ip_address}: {e}")
-        return False
-
-
 def extract_camera_ip_from_rtsp(rtsp_url: str) -> Optional[str]:
     """
     Extract IP address from RTSP URL
@@ -357,14 +335,18 @@ def extract_camera_ip_from_rtsp(rtsp_url: str) -> Optional[str]:
 
 @app.route('/api/camera/status')
 def get_camera_status():
-    """Get status of all cameras with network connectivity check"""
+    """
+    Get status of all cameras based on recent database activity
+    Simple and reliable: If camera service is writing to DB, camera is working
+    """
     try:
-        # Get camera RTSP URL from environment
+        # Get camera configuration
         camera_rtsp_url = os.getenv('CAMERA_RTSP_URL', '')
         camera_ip = extract_camera_ip_from_rtsp(camera_rtsp_url) if camera_rtsp_url else None
 
         with DatabaseConnection() as conn:
             with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+                # Check for recent activity (last hour)
                 cursor.execute("""
                     SELECT
                         camera_name,
@@ -398,39 +380,29 @@ def get_camera_status():
                         camera['last_activity'] = camera['last_activity'].isoformat()
                         last_activity = datetime.fromisoformat(camera['last_activity'])
                         time_diff = datetime.now() - last_activity.replace(tzinfo=None)
-                        db_status_seconds = time_diff.total_seconds()
+                        seconds_since_activity = time_diff.total_seconds()
                     else:
-                        db_status_seconds = float('inf')
+                        seconds_since_activity = float('inf')
 
-                    # Check actual camera connectivity if IP available
-                    camera_reachable = False
-                    if camera_ip:
-                        logger.info(f"Checking connectivity to camera at {camera_ip}...")
-                        camera_reachable = ping_camera(camera_ip, timeout=2)
-                        logger.info(f"Camera {camera_ip} reachable: {camera_reachable}")
-
-                    # Determine status based on BOTH connectivity AND database activity
-                    if camera_reachable:
-                        # Camera is online and reachable
-                        if db_status_seconds < 300:  # Activity within 5 minutes
-                            camera['status'] = 'online'
-                            camera['status_reason'] = 'Camera reachable and actively detecting'
-                        elif db_status_seconds < 3600:  # Activity within 1 hour
-                            camera['status'] = 'warning'
-                            camera['status_reason'] = 'Camera reachable but no recent detections'
-                        else:
-                            camera['status'] = 'warning'
-                            camera['status_reason'] = 'Camera reachable but service may not be running'
+                    # Simple, reliable status determination based on database activity
+                    # If camera service is writing to DB, camera + service are working
+                    if seconds_since_activity < 180:  # Activity within 3 minutes
+                        camera['status'] = 'online'
+                        camera['status_reason'] = f'Active - Last detection {int(seconds_since_activity)} seconds ago'
+                    elif seconds_since_activity < 600:  # Activity within 10 minutes
+                        camera['status'] = 'warning'
+                        camera['status_reason'] = f'No recent detections for {int(seconds_since_activity / 60)} minutes'
                     else:
-                        # Camera is not reachable via ping
-                        if db_status_seconds < 300:  # Recent activity despite unreachable
-                            camera['status'] = 'warning'
-                            camera['status_reason'] = 'Recent activity but camera not responding to ping'
+                        # No recent activity - check if camera service might be starting up
+                        # or if there simply haven't been any faces to detect
+                        camera['status'] = 'offline'
+                        if seconds_since_activity == float('inf'):
+                            camera['status_reason'] = 'Camera service starting up or no activity recorded yet'
                         else:
-                            camera['status'] = 'offline'
-                            camera['status_reason'] = f'Camera not reachable at {camera_ip or "unknown IP"}'
+                            minutes_ago = int(seconds_since_activity / 60)
+                            camera['status_reason'] = f'No activity for {minutes_ago} minutes - Camera or service may be offline'
 
-                    # Add camera IP to response for debugging
+                    # Add camera IP for reference
                     camera['camera_ip'] = camera_ip
 
                 return jsonify(cameras)

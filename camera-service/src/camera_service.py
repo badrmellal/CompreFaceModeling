@@ -49,8 +49,13 @@ class Config:
     COMPREFACE_RECOGNITION_ENDPOINT = f'{COMPREFACE_API_URL}/api/v1/recognition/recognize'
 
     # Recognition Configuration
-    SIMILARITY_THRESHOLD = float(os.getenv('SIMILARITY_THRESHOLD', '0.85'))  # 85% similarity
+    SIMILARITY_THRESHOLD = float(os.getenv('SIMILARITY_THRESHOLD', '0.88'))  # 88% similarity for military grade
     DET_PROB_THRESHOLD = float(os.getenv('DET_PROB_THRESHOLD', '0.8'))  # 80% detection confidence
+
+    # Military-Grade Quality Control (3-meter maximum distance)
+    MIN_FACE_WIDTH = int(os.getenv('MIN_FACE_WIDTH', '70'))  # Minimum face width in pixels (~3 meters)
+    MIN_FACE_HEIGHT = int(os.getenv('MIN_FACE_HEIGHT', '70'))  # Minimum face height in pixels (~3 meters)
+    MIN_FACE_AREA = int(os.getenv('MIN_FACE_AREA', '4900'))  # Minimum face area (70x70 = 4900 pixels²)
 
     # Alert Configuration
     ENABLE_ALERTS = os.getenv('ENABLE_ALERTS', 'true').lower() == 'true'
@@ -340,9 +345,42 @@ class FaceRecognitionService:
             logger.error(f"Face recognition failed: {e}")
             return []
 
+    def _check_face_quality(self, box: Dict, detection_prob: float = None) -> tuple:
+        """
+        Check if face meets military-grade quality requirements
+
+        Args:
+            box: Face bounding box with x_min, y_min, x_max, y_max, probability
+            detection_prob: Detection probability (0-1)
+
+        Returns:
+            (is_valid: bool, reason: str)
+        """
+        # Calculate face dimensions
+        face_width = box.get('x_max', 0) - box.get('x_min', 0)
+        face_height = box.get('y_max', 0) - box.get('y_min', 0)
+        face_area = face_width * face_height
+
+        # Check detection confidence
+        prob = box.get('probability', detection_prob or 1.0)
+        if prob < self.config.DET_PROB_THRESHOLD:
+            return False, f'Low detection confidence ({prob:.1%}), face not clear enough'
+
+        # Check minimum face size (distance requirement)
+        if face_width < self.config.MIN_FACE_WIDTH or face_height < self.config.MIN_FACE_HEIGHT:
+            estimated_distance = "more than 3 meters"
+            return False, f'Face too small ({face_width}x{face_height}px), person is {estimated_distance} away - please move closer'
+
+        # Check minimum face area
+        if face_area < self.config.MIN_FACE_AREA:
+            return False, f'Face area too small ({face_area}px²), insufficient detail for reliable recognition'
+
+        return True, 'Face meets military-grade quality standards'
+
     def process_recognition_results(self, results: List[Dict]) -> tuple:
         """
         Process recognition results and categorize as authorized/unauthorized
+        Military-grade filtering: Only processes faces within 3 meters and clearly visible
         Returns: (authorized_faces, unauthorized_faces)
         """
         authorized = []
@@ -351,6 +389,22 @@ class FaceRecognitionService:
         for result in results:
             box = result.get('box', {})
             subjects = result.get('subjects', [])
+
+            # MILITARY-GRADE QUALITY CHECK: Verify face is close enough and clear enough
+            detection_prob = result.get('detection_probability', box.get('probability', 1.0))
+            is_quality_ok, quality_reason = self._check_face_quality(box, detection_prob)
+
+            if not is_quality_ok:
+                # Face doesn't meet military-grade standards - reject
+                logger.warning(f"⚠️ Face quality check failed: {quality_reason}")
+                unauthorized.append({
+                    'subject_name': None,
+                    'similarity': None,
+                    'box': box,
+                    'reason': f'Quality Check Failed: {quality_reason}',
+                    'quality_check': False
+                })
+                continue  # Skip this face entirely
 
             if subjects:
                 # Face recognized - check similarity
@@ -362,7 +416,10 @@ class FaceRecognitionService:
                 metadata = self._fetch_personnel_metadata(subject_name)
 
                 if similarity >= self.config.SIMILARITY_THRESHOLD:
-                    # HIGH similarity - Authorized access
+                    # HIGH similarity - Authorized access (MILITARY-GRADE VERIFIED)
+                    face_width = box.get('x_max', 0) - box.get('x_min', 0)
+                    face_height = box.get('y_max', 0) - box.get('y_min', 0)
+
                     authorized.append({
                         'subject_name': subject_name,
                         'similarity': similarity,
@@ -372,9 +429,11 @@ class FaceRecognitionService:
                         'department': metadata.get('department'),
                         'sub_department': metadata.get('sub_department'),
                         'rank': metadata.get('rank'),
-                        'metadata': metadata
+                        'metadata': metadata,
+                        'quality_check': True,
+                        'face_size': f'{face_width}x{face_height}'
                     })
-                    logger.info(f"✓ Authorized: {subject_name} ({similarity:.2%}) - {metadata.get('department', 'N/A')}")
+                    logger.info(f"✓ AUTHORIZED (MILITARY-GRADE): {subject_name} ({similarity:.2%}) - {metadata.get('department', 'N/A')} - Face: {face_width}x{face_height}px")
                 elif similarity >= 0.50:
                     # MEDIUM similarity (50-87%) - Log name for investigation but unauthorized
                     unauthorized.append({

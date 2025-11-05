@@ -1011,6 +1011,43 @@ body {
     color: #fff;
 }
 
+.image-confidence-badge {
+    position: absolute;
+    top: 0.5rem;
+    left: 0.5rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.image-confidence-badge.high-confidence {
+    background-color: #28a745;
+    color: #fff;
+}
+
+.image-confidence-badge.medium-confidence {
+    background-color: #ffc107;
+    color: #000;
+}
+
+.image-confidence-badge.low-confidence {
+    background-color: #dc3545;
+    color: #fff;
+}
+
+.image-confidence {
+    font-size: 0.85rem;
+    color: var(--text-color);
+    margin-top: 0.25rem;
+}
+
+.image-confidence strong {
+    color: var(--primary-color);
+    font-weight: 700;
+}
+
 .image-subject {
     font-weight: 700;
     font-size: 0.95rem;

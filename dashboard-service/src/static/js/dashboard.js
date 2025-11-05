@@ -956,16 +956,22 @@ async function refreshGallery(page = 1) {
             const statusIcon = img.is_authorized ? '✅' : '❌';
             const statusLabel = img.is_authorized ? 'Autorisé' : 'Non Autorisé';
 
+            // Format confidence score
+            const confidenceScore = img.similarity ? (img.similarity * 100).toFixed(1) + '%' : 'N/A';
+            const confidenceClass = img.similarity >= 0.88 ? 'high-confidence' : (img.similarity >= 0.50 ? 'medium-confidence' : 'low-confidence');
+
             return `
                 <div class="image-card ${statusClass}" onclick="viewFullImage('${img.url}', '${escapeHtml(img.filename)}')">
                     <div class="image-wrapper">
                         <img src="${img.url}" alt="${escapeHtml(img.subject_name)}" loading="lazy" />
                         <div class="image-status-badge ${statusClass}">${statusIcon} ${statusLabel}</div>
+                        ${img.similarity ? `<div class="image-confidence-badge ${confidenceClass}">🎯 ${confidenceScore}</div>` : ''}
                     </div>
                     <div class="image-info">
                         <div class="image-subject">${statusIcon} ${escapeHtml(img.subject_name)}</div>
                         <div class="image-department">${escapeHtml(img.department || 'N/A')}</div>
                         <div class="image-timestamp">🕒 ${timeStr}</div>
+                        ${img.similarity ? `<div class="image-confidence">Confiance: <strong>${confidenceScore}</strong></div>` : ''}
                     </div>
                 </div>
             `;

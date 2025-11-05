@@ -88,19 +88,19 @@
 
             <!-- Section Flux Vidéo en Direct -->
             <div class="live-stream-section">
-                <h3>📹 Flux Vidéo en Direct</h3>
+                <h3>📹 Flux Vidéo en Direct (WebSocket)</h3>
                 <div class="video-container" id="liveVideoContainer">
                     <div class="video-placeholder" id="videoPlaceholder">
                         <div style="text-align: center;">
                             <div style="font-size: 3rem; margin-bottom: 1rem;">📹</div>
-                            <div>Flux vidéo en direct non disponible</div>
+                            <div>Connexion au flux vidéo en cours...</div>
                             <div style="font-size: 0.9rem; margin-top: 0.5rem; color: #666;">
-                                Le streaming en direct sera disponible prochainement
+                                WebSocket streaming avec détection en temps réel
                             </div>
                         </div>
                     </div>
-                    <!-- L'image MJPEG sera injectée ici par JavaScript si disponible -->
-                    <img id="liveVideoStream" class="video-stream" style="display: none;" alt="Flux vidéo en direct" />
+                    <!-- Canvas pour le streaming WebSocket -->
+                    <canvas id="liveVideoCanvas" class="video-stream" style="display: none;"></canvas>
                 </div>
             </div>
 

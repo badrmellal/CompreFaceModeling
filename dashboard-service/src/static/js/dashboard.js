@@ -6,7 +6,8 @@ const CONFIG = {
     API_BASE_URL: '',  // Same origin
     REFRESH_INTERVAL: 30000,  // 30 seconds (auto-refresh interval)
     COUNTDOWN_INTERVAL: 1000, // 1 second
-    VIDEO_STREAM_URL: '',  // Will be set dynamically based on current host
+    VIDEO_STREAM_URL: '',  // Will be set dynamically based on current host (legacy MJPEG)
+    WEBSOCKET_URL: '',  // Will be set dynamically for WebSocket streaming
     IMAGES_PER_PAGE: 20,
 };
 
@@ -28,13 +29,20 @@ let galleryFilters = {
     status: ''
 };
 
+// WebSocket state
+let socket = null;
+let videoCanvas = null;
+let videoContext = null;
+let isStreamingWebSocket = false;
+
 // ==================== INITIALIZATION ====================
 document.addEventListener('DOMContentLoaded', function() {
     console.log('1BIP Dashboard initializing...');
 
-    // Set video stream URL based on current host
+    // Set video stream URLs based on current host
     const currentHost = window.location.hostname;
-    CONFIG.VIDEO_STREAM_URL = `http://${currentHost}:5001/stream/video.mjpeg`;
+    CONFIG.VIDEO_STREAM_URL = `http://${currentHost}:5001/stream/video.mjpeg`;  // Legacy MJPEG
+    CONFIG.WEBSOCKET_URL = `http://${currentHost}:5001`;  // WebSocket server
 
     // Initialize tabs
     initializeTabs();
@@ -391,30 +399,152 @@ function closeImageModal() {
     }
 }
 
-// ==================== VIDEO STREAM ====================
+// ==================== VIDEO STREAM (WebSocket) ====================
 function initializeVideoStream() {
-    const videoStream = document.getElementById('liveVideoStream');
+    const videoPlaceholder = document.getElementById('videoPlaceholder');
+    videoCanvas = document.getElementById('liveVideoCanvas');
+
+    if (!videoCanvas) {
+        console.error('Video canvas not found');
+        return;
+    }
+
+    videoContext = videoCanvas.getContext('2d');
+
+    // Show loading message
+    videoPlaceholder.style.display = 'flex';
+    videoCanvas.style.display = 'none';
+
+    // Initialize WebSocket connection
+    console.log('Connecting to WebSocket video stream:', CONFIG.WEBSOCKET_URL);
+
+    // Load Socket.IO client library dynamically
+    loadSocketIO().then(() => {
+        connectWebSocketStream();
+    }).catch(error => {
+        console.error('Failed to load Socket.IO client:', error);
+        showStreamError('Failed to load streaming library');
+    });
+}
+
+function loadSocketIO() {
+    return new Promise((resolve, reject) => {
+        // Check if Socket.IO is already loaded
+        if (typeof io !== 'undefined') {
+            resolve();
+            return;
+        }
+
+        // Load Socket.IO from CDN
+        const script = document.createElement('script');
+        script.src = 'https://cdn.socket.io/4.5.4/socket.io.min.js';
+        script.onload = resolve;
+        script.onerror = reject;
+        document.head.appendChild(script);
+    });
+}
+
+function connectWebSocketStream() {
     const videoPlaceholder = document.getElementById('videoPlaceholder');
 
-    if (!videoStream) return;
+    try {
+        // Create Socket.IO connection
+        socket = io(CONFIG.WEBSOCKET_URL, {
+            transports: ['websocket', 'polling'],
+            reconnection: true,
+            reconnectionAttempts: 5,
+            reconnectionDelay: 2000
+        });
 
-    // Try to load the stream
-    videoStream.src = CONFIG.VIDEO_STREAM_URL;
+        // Connection successful
+        socket.on('connect', function() {
+            console.log('WebSocket connected successfully');
+            isStreamingWebSocket = true;
 
-    videoStream.onload = function() {
-        // Stream loaded successfully
-        videoPlaceholder.style.display = 'none';
-        videoStream.style.display = 'block';
-        console.log('Video stream connected successfully');
-    };
+            // Request video stream
+            socket.emit('start_stream');
 
-    videoStream.onerror = function() {
-        // Stream failed to load - keep placeholder visible
-        videoPlaceholder.style.display = 'flex';
-        videoStream.style.display = 'none';
-        console.log('Video stream not available');
-    };
+            // Hide placeholder, show canvas
+            videoPlaceholder.style.display = 'none';
+            videoCanvas.style.display = 'block';
+        });
+
+        // Receive video frames
+        socket.on('video_frame', function(data) {
+            renderVideoFrame(data);
+        });
+
+        // Connection status
+        socket.on('status', function(data) {
+            console.log('Stream status:', data.message, 'FPS:', data.fps);
+        });
+
+        // Handle disconnection
+        socket.on('disconnect', function() {
+            console.log('WebSocket disconnected');
+            isStreamingWebSocket = false;
+            showStreamError('Stream disconnected - attempting to reconnect...');
+        });
+
+        // Handle connection errors
+        socket.on('connect_error', function(error) {
+            console.error('WebSocket connection error:', error);
+            showStreamError('Failed to connect to video stream');
+        });
+
+    } catch (error) {
+        console.error('Error initializing WebSocket stream:', error);
+        showStreamError('Failed to initialize video stream');
+    }
 }
+
+function renderVideoFrame(data) {
+    if (!videoContext || !videoCanvas) return;
+
+    try {
+        // Create image from base64 data
+        const img = new Image();
+        img.onload = function() {
+            // Set canvas size to match video dimensions (only if different)
+            if (videoCanvas.width !== data.width || videoCanvas.height !== data.height) {
+                videoCanvas.width = data.width;
+                videoCanvas.height = data.height;
+            }
+
+            // Draw image on canvas
+            videoContext.drawImage(img, 0, 0, data.width, data.height);
+        };
+
+        // Set image source to base64 JPEG
+        img.src = 'data:image/jpeg;base64,' + data.frame;
+
+    } catch (error) {
+        console.error('Error rendering video frame:', error);
+    }
+}
+
+function showStreamError(message) {
+    const videoPlaceholder = document.getElementById('videoPlaceholder');
+    if (videoPlaceholder) {
+        videoPlaceholder.innerHTML = `
+            <div style="text-align: center;">
+                <div style="font-size: 3rem; margin-bottom: 1rem;">⚠️</div>
+                <div>${message}</div>
+            </div>
+        `;
+        videoPlaceholder.style.display = 'flex';
+    }
+    if (videoCanvas) {
+        videoCanvas.style.display = 'none';
+    }
+}
+
+// Cleanup on page unload
+window.addEventListener('beforeunload', function() {
+    if (socket && socket.connected) {
+        socket.disconnect();
+    }
+});
 
 // ==================== CAMERA STATUS ====================
 async function refreshCameraStatus() {

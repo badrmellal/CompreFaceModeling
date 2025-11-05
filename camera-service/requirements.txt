@@ -27,3 +27,9 @@ simplejson==3.19.2
 
 # Flask for video streaming server
 Flask==3.0.0
+
+# Flask-SocketIO for WebSocket streaming
+Flask-SocketIO==5.3.6
+
+# Eventlet for async WebSocket support
+eventlet==0.33.3

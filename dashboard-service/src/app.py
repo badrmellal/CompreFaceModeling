@@ -734,9 +734,9 @@ def get_gallery_images():
         # Query database for metadata
         with DatabaseConnection() as conn:
             with conn.cursor(cursor_factory=RealDictCursor) as cursor:
-                # Build query with filters
+                # Build query with filters - GROUP BY track_id to show only one image per person/visit
                 query = """
-                    SELECT
+                    SELECT DISTINCT ON (track_id)
                         image_path,
                         subject_name,
                         department,
@@ -744,9 +744,11 @@ def get_gallery_images():
                         is_authorized,
                         similarity,
                         timestamp,
-                        camera_name
+                        camera_name,
+                        track_id
                     FROM access_logs
                     WHERE image_path IS NOT NULL
+                    AND track_id IS NOT NULL
                 """
                 params = []
 
@@ -768,16 +770,39 @@ def get_gallery_images():
                 elif status_filter == 'unauthorized':
                     query += " AND is_authorized = FALSE"
 
-                # Count total
-                count_query = f"SELECT COUNT(*) FROM ({query}) AS filtered"
-                cursor.execute(count_query, params)
+                # Order by track_id and timestamp (get first image of each track)
+                query += " ORDER BY track_id, timestamp ASC"
+
+                # For counting, we need unique track_ids
+                count_query = f"SELECT COUNT(DISTINCT track_id) FROM access_logs WHERE image_path IS NOT NULL AND track_id IS NOT NULL"
+                count_params = []
+
+                if name_filter:
+                    count_query += " AND LOWER(subject_name) LIKE LOWER(%s)"
+                    count_params.append(f'%{name_filter}%')
+                if department_filter:
+                    count_query += " AND department = %s"
+                    count_params.append(department_filter)
+                if sub_department_filter:
+                    count_query += " AND sub_department = %s"
+                    count_params.append(sub_department_filter)
+                if status_filter == 'authorized':
+                    count_query += " AND is_authorized = TRUE"
+                elif status_filter == 'unauthorized':
+                    count_query += " AND is_authorized = FALSE"
+
+                cursor.execute(count_query, count_params)
                 total = cursor.fetchone()['count']
 
-                # Get paginated results
-                query += " ORDER BY timestamp DESC LIMIT %s OFFSET %s"
+                # Apply pagination using subquery (because DISTINCT ON doesn't work well with LIMIT/OFFSET directly)
+                paginated_query = f"""
+                    SELECT * FROM ({query}) AS unique_tracks
+                    ORDER BY timestamp DESC
+                    LIMIT %s OFFSET %s
+                """
                 params.extend([per_page, (page - 1) * per_page])
 
-                cursor.execute(query, params)
+                cursor.execute(paginated_query, params)
                 records = cursor.fetchall()
 
         # Build response

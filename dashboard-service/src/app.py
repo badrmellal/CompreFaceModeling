@@ -84,12 +84,13 @@ def get_summary_stats():
                 """)
                 total_today = cursor.fetchone()['total']
 
-                # Authorized access today
+                # Authorized access today (unique people who accessed today)
                 cursor.execute("""
-                    SELECT COUNT(*) as authorized
+                    SELECT COUNT(DISTINCT subject_name) as authorized
                     FROM access_logs
                     WHERE timestamp >= CURRENT_DATE
                     AND is_authorized = TRUE
+                    AND subject_name IS NOT NULL
                 """)
                 authorized_today = cursor.fetchone()['authorized']
 
@@ -102,30 +103,83 @@ def get_summary_stats():
                 """)
                 unauthorized_today = cursor.fetchone()['unauthorized']
 
-                # Unique employees today
-                cursor.execute("""
-                    SELECT COUNT(DISTINCT subject_name) as unique_employees
-                    FROM access_logs
-                    WHERE timestamp >= CURRENT_DATE
-                    AND is_authorized = TRUE
-                    AND subject_name IS NOT NULL
-                """)
-                unique_employees = cursor.fetchone()['unique_employees']
+                # Parachutistes actifs today (same as authorized, but clearer name)
+                unique_visitors_today = authorized_today
 
-                # Active cameras (cameras that reported in last 5 minutes)
+                # Total personnel in database (from CompreFace)
+                try:
+                    url = f"{COMPREFACE_API_URL}/api/v1/recognition/subjects"
+                    headers = {'x-api-key': COMPREFACE_API_KEY}
+                    response = requests.get(url, headers=headers, timeout=5)
+                    if response.status_code == 200:
+                        total_personnel = len(response.json().get('subjects', []))
+                    else:
+                        total_personnel = 0
+                except Exception as e:
+                    logger.error(f"Failed to get personnel count: {e}")
+                    total_personnel = 0
+
+                # Active cameras (cameras active within last 2 hours - matching camera status logic)
                 cursor.execute("""
                     SELECT COUNT(DISTINCT camera_name) as active_cameras
                     FROM access_logs
-                    WHERE timestamp >= NOW() - INTERVAL '5 minutes'
+                    WHERE timestamp >= NOW() - INTERVAL '2 hours'
                 """)
                 active_cameras = cursor.fetchone()['active_cameras']
+
+                # New analytics metrics
+
+                # Average detection rate per hour today
+                cursor.execute("""
+                    SELECT
+                        COUNT(*) / NULLIF(EXTRACT(HOUR FROM NOW() - MIN(timestamp)) + 1, 0) as detections_per_hour
+                    FROM access_logs
+                    WHERE timestamp >= CURRENT_DATE
+                """)
+                detections_per_hour = cursor.fetchone()['detections_per_hour'] or 0
+
+                # Security alert rate (percentage of unauthorized)
+                security_alert_rate = 0
+                if total_today > 0:
+                    security_alert_rate = round((unauthorized_today / total_today) * 100, 1)
+
+                # Most active camera today
+                cursor.execute("""
+                    SELECT camera_name, COUNT(*) as count
+                    FROM access_logs
+                    WHERE timestamp >= CURRENT_DATE
+                    GROUP BY camera_name
+                    ORDER BY count DESC
+                    LIMIT 1
+                """)
+                most_active_camera_row = cursor.fetchone()
+                most_active_camera = most_active_camera_row['camera_name'] if most_active_camera_row else 'N/A'
+
+                # Peak hour today
+                cursor.execute("""
+                    SELECT
+                        EXTRACT(HOUR FROM timestamp) as hour,
+                        COUNT(*) as count
+                    FROM access_logs
+                    WHERE timestamp >= CURRENT_DATE
+                    GROUP BY EXTRACT(HOUR FROM timestamp)
+                    ORDER BY count DESC
+                    LIMIT 1
+                """)
+                peak_hour_row = cursor.fetchone()
+                peak_hour = f"{int(peak_hour_row['hour'])}:00" if peak_hour_row else 'N/A'
 
                 return jsonify({
                     'total_today': total_today,
                     'authorized_today': authorized_today,
                     'unauthorized_today': unauthorized_today,
-                    'unique_employees': unique_employees,
+                    'unique_visitors_today': unique_visitors_today,
+                    'total_personnel': total_personnel,
                     'active_cameras': active_cameras,
+                    'detections_per_hour': round(float(detections_per_hour), 1),
+                    'security_alert_rate': security_alert_rate,
+                    'most_active_camera': most_active_camera,
+                    'peak_hour': peak_hour,
                     'timestamp': datetime.now().isoformat()
                 })
 

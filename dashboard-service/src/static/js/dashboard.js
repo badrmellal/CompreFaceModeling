@@ -138,11 +138,17 @@ async function loadSummaryStats() {
 
         const data = await response.json();
 
-        document.getElementById('totalToday').textContent = data.total_today || 0;
-        document.getElementById('authorizedToday').textContent = data.authorized_today || 0;
-        document.getElementById('unauthorizedToday').textContent = data.unauthorized_today || 0;
-        document.getElementById('uniqueEmployees').textContent = data.unique_employees || 0;
+        // Primary metrics (row 1)
+        document.getElementById('totalPersonnel').textContent = data.total_personnel || 0;
+        document.getElementById('uniqueVisitorsToday').textContent = data.unique_visitors_today || 0;
         document.getElementById('activeCameras').textContent = data.active_cameras || 0;
+        document.getElementById('unauthorizedToday').textContent = data.unauthorized_today || 0;
+
+        // Operational metrics (row 2)
+        document.getElementById('totalToday').textContent = data.total_today || 0;
+        document.getElementById('detectionRate').textContent = data.detections_per_hour || 0;
+        document.getElementById('alertRate').textContent = `${data.security_alert_rate || 0}%`;
+        document.getElementById('peakHour').textContent = data.peak_hour || 'N/A';
 
     } catch (error) {
         console.error('Error loading summary stats:', error);

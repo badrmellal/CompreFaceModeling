@@ -117,47 +117,156 @@ body {
     50% { opacity: 0.5; }
 }
 
-/* ==================== STATISTICS CARDS ==================== */
+/* ==================== STATISTICS CARDS - PROFESSIONAL DESIGN ==================== */
 .stats-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
     gap: 1.5rem;
     margin: 2rem 0;
 }
 
 .stat-card {
     background: var(--card-bg);
-    border-radius: 8px;
-    padding: 1.5rem;
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-    border-left: 4px solid var(--primary-color);
-    transition: transform 0.2s, box-shadow 0.2s;
+    border-radius: 12px;
+    padding: 1.75rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    border: 1px solid rgba(0,0,0,0.05);
+    transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+    position: relative;
+    overflow: hidden;
+}
+
+.stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--primary-color), #4A90E2);
+    transition: height 0.3s;
 }
 
 .stat-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    transform: translateY(-4px);
+    box-shadow: 0 8px 16px rgba(0,0,0,0.12);
+    border-color: rgba(0,0,0,0.1);
 }
 
-.stat-card.success {
-    border-left-color: var(--success-color);
+.stat-card:hover::before {
+    height: 6px;
 }
 
-.stat-card.danger {
-    border-left-color: var(--danger-color);
+/* Card variants */
+.stat-card.success::before {
+    background: linear-gradient(90deg, var(--success-color), #5DD39E);
 }
 
-.stat-card.warning {
-    border-left-color: var(--warning-color);
+.stat-card.danger::before {
+    background: linear-gradient(90deg, var(--danger-color), #FF6B9D);
 }
 
-.stat-card.info {
-    border-left-color: var(--info-color);
+.stat-card.warning::before {
+    background: linear-gradient(90deg, var(--warning-color), #FFD93D);
 }
 
+.stat-card.info::before {
+    background: linear-gradient(90deg, var(--info-color), #6DD5ED);
+}
+
+.stat-card.info-alt::before {
+    background: linear-gradient(90deg, #9D50BB, #6E48AA);
+}
+
+/* Card header with icon and title */
+.card-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+}
+
+.stat-icon-modern {
+    font-size: 2.5rem;
+    line-height: 1;
+    flex-shrink: 0;
+}
+
+.card-title {
+    flex: 1;
+}
+
+.label-small {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+    margin-bottom: 0.25rem;
+}
+
+.label-main {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text-color);
+    margin: 0;
+    line-height: 1.3;
+}
+
+/* Card content */
+.stat-content-modern {
+    padding-top: 0.5rem;
+}
+
+.stat-value-large {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: var(--text-color);
+    line-height: 1;
+    margin: 0 0 0.5rem 0;
+    font-variant-numeric: tabular-nums;
+}
+
+.stat-description {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    margin: 0;
+    line-height: 1.4;
+}
+
+/* Metric type styling */
+.primary-metric {
+    background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+}
+
+.operational-metric {
+    background: linear-gradient(135deg, #ffffff 0%, #fafbfc 100%);
+    border: 1px solid rgba(0,0,0,0.06);
+}
+
+.operational-metric .stat-value-large {
+    font-size: 2.25rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 1400px) {
+    .stats-grid {
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    }
+}
+
+@media (max-width: 768px) {
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .stat-value-large {
+        font-size: 2rem;
+    }
+}
+
+/* Legacy support - old stat cards (keep for backward compatibility) */
 .stat-icon {
     font-size: 2.5rem;
 }

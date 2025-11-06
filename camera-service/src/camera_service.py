@@ -11,12 +11,14 @@ import json
 import time
 import logging
 import os
-from datetime import datetime
-from typing import List, Dict, Any, Optional
+import numpy as np
+from datetime import datetime, timedelta
+from typing import List, Dict, Any, Optional, Tuple
 import threading
 from queue import Queue
 import psycopg2
 from psycopg2.extras import RealDictCursor
+import uuid
 
 # Configure logging
 logging.basicConfig(
@@ -56,6 +58,15 @@ class Config:
     MIN_FACE_WIDTH = int(os.getenv('MIN_FACE_WIDTH', '70'))  # Minimum face width in pixels (~3 meters)
     MIN_FACE_HEIGHT = int(os.getenv('MIN_FACE_HEIGHT', '70'))  # Minimum face height in pixels (~3 meters)
     MIN_FACE_AREA = int(os.getenv('MIN_FACE_AREA', '4900'))  # Minimum face area (70x70 = 4900 pixels²)
+
+    # Face Pose Requirements (reject side profiles)
+    MAX_YAW_ANGLE = float(os.getenv('MAX_YAW_ANGLE', '30'))  # Maximum yaw (side rotation) in degrees
+    MAX_PITCH_ANGLE = float(os.getenv('MAX_PITCH_ANGLE', '30'))  # Maximum pitch (up/down) in degrees
+
+    # Face Tracking Configuration
+    TRACK_TIMEOUT = int(os.getenv('TRACK_TIMEOUT', '30'))  # Seconds before track expires
+    TRACK_IOU_THRESHOLD = float(os.getenv('TRACK_IOU_THRESHOLD', '0.3'))  # IoU threshold for matching tracks
+    TRACK_EMBEDDING_THRESHOLD = float(os.getenv('TRACK_EMBEDDING_THRESHOLD', '0.6'))  # Embedding similarity for track matching
 
     # Alert Configuration
     ENABLE_ALERTS = os.getenv('ENABLE_ALERTS', 'true').lower() == 'true'
@@ -126,7 +137,7 @@ class DatabaseManager:
                     );
                 """)
 
-                # Add department and sub_department columns if they don't exist (migration)
+                # Add department, sub_department, and track_id columns if they don't exist (migration)
                 cursor.execute("""
                     DO $$
                     BEGIN
@@ -137,6 +148,10 @@ class DatabaseManager:
                         IF NOT EXISTS (SELECT 1 FROM information_schema.columns
                                       WHERE table_name='access_logs' AND column_name='sub_department') THEN
                             ALTER TABLE access_logs ADD COLUMN sub_department VARCHAR(255);
+                        END IF;
+                        IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                                      WHERE table_name='access_logs' AND column_name='track_id') THEN
+                            ALTER TABLE access_logs ADD COLUMN track_id VARCHAR(255);
                         END IF;
                     END $$;
                 """)
@@ -162,6 +177,11 @@ class DatabaseManager:
                     ON access_logs(department);
                 """)
 
+                cursor.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_access_logs_track_id
+                    ON access_logs(track_id);
+                """)
+
                 self.connection.commit()
                 logger.info("Database tables verified/created")
         except Exception as e:
@@ -176,20 +196,21 @@ class DatabaseManager:
                    image_path: Optional[str] = None,
                    department: Optional[str] = None,
                    sub_department: Optional[str] = None,
-                   metadata: Optional[Dict] = None):
+                   metadata: Optional[Dict] = None,
+                   track_id: Optional[str] = None):
         """Log an access attempt"""
         try:
             with self.connection.cursor() as cursor:
                 cursor.execute("""
                     INSERT INTO access_logs
                     (camera_name, camera_location, subject_name, department, sub_department,
-                     is_authorized, similarity, face_box, alert_sent, image_path, metadata)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                     is_authorized, similarity, face_box, alert_sent, image_path, metadata, track_id)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     RETURNING id;
                 """, (
                     camera_name, camera_location, subject_name, department, sub_department,
                     is_authorized, similarity, json.dumps(face_box) if face_box else None,
-                    alert_sent, image_path, json.dumps(metadata) if metadata else None
+                    alert_sent, image_path, json.dumps(metadata) if metadata else None, track_id
                 ))
                 log_id = cursor.fetchone()[0]
                 self.connection.commit()
@@ -288,6 +309,193 @@ class AlertManager:
         return True
 
 
+class FaceTracker:
+    """
+    Tracks faces across frames with timeout-based tracking
+    - Assigns unique track_id to each face
+    - Expires tracks after TRACK_TIMEOUT seconds
+    - Matches faces using IoU and embedding similarity
+    - Per-camera tracking (separate tracker per camera)
+    """
+
+    def __init__(self, config: Config, camera_name: str):
+        self.config = config
+        self.camera_name = camera_name
+        self.active_tracks: Dict[str, Dict[str, Any]] = {}  # track_id -> track_data
+        self.lock = threading.Lock()
+
+    def calculate_iou(self, box1: Dict, box2: Dict) -> float:
+        """Calculate Intersection over Union (IoU) between two bounding boxes"""
+        x1_min = box1['x_min']
+        y1_min = box1['y_min']
+        x1_max = box1['x_max']
+        y1_max = box1['y_max']
+
+        x2_min = box2['x_min']
+        y2_min = box2['y_min']
+        x2_max = box2['x_max']
+        y2_max = box2['y_max']
+
+        # Calculate intersection area
+        x_inter_min = max(x1_min, x2_min)
+        y_inter_min = max(y1_min, y2_min)
+        x_inter_max = min(x1_max, x2_max)
+        y_inter_max = min(y1_max, y2_max)
+
+        if x_inter_max < x_inter_min or y_inter_max < y_inter_min:
+            return 0.0
+
+        inter_area = (x_inter_max - x_inter_min) * (y_inter_max - y_inter_min)
+
+        # Calculate union area
+        box1_area = (x1_max - x1_min) * (y1_max - y1_min)
+        box2_area = (x2_max - x2_min) * (y2_max - y2_min)
+        union_area = box1_area + box2_area - inter_area
+
+        return inter_area / union_area if union_area > 0 else 0.0
+
+    def calculate_embedding_similarity(self, emb1: Optional[List[float]], emb2: Optional[List[float]]) -> float:
+        """Calculate cosine similarity between two embeddings"""
+        if emb1 is None or emb2 is None:
+            return 0.0
+
+        emb1_array = np.array(emb1)
+        emb2_array = np.array(emb2)
+
+        # Cosine similarity
+        dot_product = np.dot(emb1_array, emb2_array)
+        norm1 = np.linalg.norm(emb1_array)
+        norm2 = np.linalg.norm(emb2_array)
+
+        if norm1 == 0 or norm2 == 0:
+            return 0.0
+
+        return dot_product / (norm1 * norm2)
+
+    def match_face_to_track(self, face_data: Dict) -> Optional[str]:
+        """
+        Match a detected face to an existing track
+        Returns track_id if match found, None otherwise
+        """
+        with self.lock:
+            best_track_id = None
+            best_score = 0.0
+
+            box = face_data.get('box', {})
+            embedding = face_data.get('embedding')
+            subject_name = face_data.get('subject_name')
+
+            for track_id, track in self.active_tracks.items():
+                # Calculate IoU with last known box
+                iou = self.calculate_iou(box, track['last_box'])
+
+                # Calculate embedding similarity if available
+                embedding_sim = 0.0
+                if embedding and track.get('embedding'):
+                    embedding_sim = self.calculate_embedding_similarity(embedding, track['embedding'])
+
+                # Combined score: IoU + embedding similarity
+                # Give more weight to embedding if same person
+                if subject_name and track.get('subject_name') == subject_name:
+                    combined_score = 0.3 * iou + 0.7 * embedding_sim
+                else:
+                    combined_score = 0.7 * iou + 0.3 * embedding_sim
+
+                # Check if this is the best match
+                if combined_score > best_score and iou > self.config.TRACK_IOU_THRESHOLD:
+                    best_score = combined_score
+                    best_track_id = track_id
+
+            return best_track_id
+
+    def update_track(self, track_id: str, face_data: Dict):
+        """Update an existing track with new detection"""
+        with self.lock:
+            if track_id in self.active_tracks:
+                track = self.active_tracks[track_id]
+                track['last_seen'] = datetime.now()
+                track['last_box'] = face_data.get('box', {})
+                track['detection_count'] += 1
+
+                # Update embedding if available (moving average)
+                if face_data.get('embedding'):
+                    if track.get('embedding'):
+                        # Exponential moving average
+                        alpha = 0.3
+                        track['embedding'] = [
+                            alpha * new + (1 - alpha) * old
+                            for new, old in zip(face_data['embedding'], track['embedding'])
+                        ]
+                    else:
+                        track['embedding'] = face_data['embedding']
+
+    def create_track(self, face_data: Dict) -> str:
+        """Create a new track for a detected face"""
+        with self.lock:
+            track_id = f"{self.camera_name}_{uuid.uuid4().hex[:8]}"
+            self.active_tracks[track_id] = {
+                'track_id': track_id,
+                'first_seen': datetime.now(),
+                'last_seen': datetime.now(),
+                'last_box': face_data.get('box', {}),
+                'subject_name': face_data.get('subject_name'),
+                'embedding': face_data.get('embedding'),
+                'detection_count': 1,
+                'logged': False  # Track if attendance has been logged
+            }
+            logger.info(f"✓ Created new track: {track_id} for {face_data.get('subject_name', 'Unknown')}")
+            return track_id
+
+    def expire_old_tracks(self):
+        """Remove tracks that haven't been seen for TRACK_TIMEOUT seconds"""
+        with self.lock:
+            now = datetime.now()
+            expired_tracks = []
+
+            for track_id, track in self.active_tracks.items():
+                time_since_last_seen = (now - track['last_seen']).total_seconds()
+                if time_since_last_seen > self.config.TRACK_TIMEOUT:
+                    expired_tracks.append(track_id)
+
+            for track_id in expired_tracks:
+                track = self.active_tracks.pop(track_id)
+                logger.info(f"⏰ Track expired: {track_id} for {track.get('subject_name', 'Unknown')} "
+                           f"(not seen for {self.config.TRACK_TIMEOUT}s)")
+
+    def process_face(self, face_data: Dict) -> Tuple[str, bool]:
+        """
+        Process a detected face and assign/update track
+        Returns: (track_id, is_new_track)
+        """
+        # First, expire old tracks
+        self.expire_old_tracks()
+
+        # Try to match to existing track
+        track_id = self.match_face_to_track(face_data)
+
+        if track_id:
+            # Update existing track
+            self.update_track(track_id, face_data)
+            return track_id, False
+        else:
+            # Create new track
+            track_id = self.create_track(face_data)
+            return track_id, True
+
+    def mark_track_logged(self, track_id: str):
+        """Mark a track as having attendance logged"""
+        with self.lock:
+            if track_id in self.active_tracks:
+                self.active_tracks[track_id]['logged'] = True
+
+    def is_track_logged(self, track_id: str) -> bool:
+        """Check if attendance has been logged for this track"""
+        with self.lock:
+            if track_id in self.active_tracks:
+                return self.active_tracks[track_id].get('logged', False)
+            return False
+
+
 class FaceRecognitionService:
     """Handles face recognition via CompreFace API"""
 
@@ -320,7 +528,7 @@ class FaceRecognitionService:
                 'limit': self.config.MAX_FACES_PER_FRAME,
                 'det_prob_threshold': self.config.DET_PROB_THRESHOLD,
                 'prediction_count': 1,
-                'face_plugins': 'age,gender',  # Optional: get age and gender
+                'face_plugins': 'age,gender,pose',  # Request age, gender, and pose
                 'status': 'true'
             }
 
@@ -345,13 +553,14 @@ class FaceRecognitionService:
             logger.error(f"Face recognition failed: {e}")
             return []
 
-    def _check_face_quality(self, box: Dict, detection_prob: float = None) -> tuple:
+    def _check_face_quality(self, box: Dict, detection_prob: float = None, pose: Dict = None) -> tuple:
         """
         Check if face meets military-grade quality requirements
 
         Args:
             box: Face bounding box with x_min, y_min, x_max, y_max, probability
             detection_prob: Detection probability (0-1)
+            pose: Pose estimation with yaw, pitch, roll angles
 
         Returns:
             (is_valid: bool, reason: str)
@@ -375,6 +584,17 @@ class FaceRecognitionService:
         if face_area < self.config.MIN_FACE_AREA:
             return False, f'Face area too small ({face_area}px²), insufficient detail for reliable recognition'
 
+        # Check face pose (reject side profiles)
+        if pose:
+            yaw = pose.get('yaw', 0)
+            pitch = pose.get('pitch', 0)
+
+            if abs(yaw) > self.config.MAX_YAW_ANGLE:
+                return False, f'Face turned too much sideways (yaw: {yaw:.1f}°), please face the camera directly'
+
+            if abs(pitch) > self.config.MAX_PITCH_ANGLE:
+                return False, f'Face tilted too much (pitch: {pitch:.1f}°), please look straight at the camera'
+
         return True, 'Face meets military-grade quality standards'
 
     def process_recognition_results(self, results: List[Dict]) -> tuple:
@@ -389,10 +609,11 @@ class FaceRecognitionService:
         for result in results:
             box = result.get('box', {})
             subjects = result.get('subjects', [])
+            pose = result.get('pose')  # Extract pose data (yaw, pitch, roll)
 
-            # MILITARY-GRADE QUALITY CHECK: Verify face is close enough and clear enough
+            # MILITARY-GRADE QUALITY CHECK: Verify face is close enough, clear enough, and frontal
             detection_prob = result.get('detection_probability', box.get('probability', 1.0))
-            is_quality_ok, quality_reason = self._check_face_quality(box, detection_prob)
+            is_quality_ok, quality_reason = self._check_face_quality(box, detection_prob, pose)
 
             if not is_quality_ok:
                 # Face doesn't meet military-grade standards - reject
@@ -508,6 +729,7 @@ class CameraService:
         self.db_manager = DatabaseManager(config)
         self.alert_manager = AlertManager(config)
         self.recognition_service = FaceRecognitionService(config, self.db_manager)
+        self.face_tracker = FaceTracker(config, config.CAMERA_NAME)  # Initialize face tracker
         self.running = False
         self.frame_count = 0
         self.latest_frame = None  # Store latest frame for streaming
@@ -613,7 +835,7 @@ class CameraService:
         return frame
 
     def process_frame(self, frame):
-        """Process a single frame for face recognition"""
+        """Process a single frame for face recognition with tracking"""
         # Perform face recognition
         results = self.recognition_service.recognize_faces(frame)
 
@@ -627,91 +849,139 @@ class CameraService:
         # Draw boxes on frame FIRST (so we can save annotated images)
         annotated_frame = self.draw_face_boxes(frame.copy(), authorized_faces, unauthorized_faces)
 
-        # Log authorized access AND save images
+        # Process authorized faces with tracking
         for face in authorized_faces:
-            image_path = None
-            filename = None
+            # Extract embedding from subjects if available
+            embedding = None
+            if 'subjects' in face and face['subjects']:
+                # Get embedding from the first subject (we can't get raw embedding from API easily)
+                # For now, we'll use the subject_name for tracking
+                pass
 
-            # Save annotated image with GREEN boxes for authorized access
-            if self.config.SAVE_DEBUG_IMAGES:
-                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-                # Include person name in filename (sanitize for filesystem)
-                safe_name = face['subject_name'].replace(' ', '_').replace('/', '_')
-                filename = f"authorized_{safe_name}_{timestamp}.jpg"
-                image_path = f"{self.config.DEBUG_IMAGE_PATH}/{filename}"
+            # Prepare face data for tracker
+            face_data = {
+                'box': face['box'],
+                'subject_name': face['subject_name'],
+                'embedding': embedding,  # Will be None, but that's ok
+                'similarity': face['similarity']
+            }
 
-                # Save the ANNOTATED frame (with green boxes and labels)
-                cv2.imwrite(image_path, annotated_frame)
-                logger.info(f"Saved authorized access image: {filename}")
+            # Process face through tracker
+            track_id, is_new_track = self.face_tracker.process_face(face_data)
 
-            self.db_manager.log_access(
-                camera_name=self.config.CAMERA_NAME,
-                camera_location=self.config.CAMERA_LOCATION,
-                subject_name=face['subject_name'],
-                is_authorized=True,
-                similarity=face['similarity'],
-                face_box=face['box'],
-                image_path=filename,
-                department=face.get('department'),
-                sub_department=face.get('sub_department'),
-                metadata={
-                    'age': face.get('age'),
-                    'gender': face.get('gender')
-                }
-            )
+            # Only log if this track hasn't been logged yet
+            if not self.face_tracker.is_track_logged(track_id):
+                image_path = None
+                filename = None
 
-        # Log unauthorized access and send alerts
+                # Save annotated image with GREEN boxes for authorized access
+                if self.config.SAVE_DEBUG_IMAGES:
+                    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+                    # Include person name in filename (sanitize for filesystem)
+                    safe_name = face['subject_name'].replace(' ', '_').replace('/', '_')
+                    filename = f"authorized_{safe_name}_{track_id}_{timestamp}.jpg"
+                    image_path = f"{self.config.DEBUG_IMAGE_PATH}/{filename}"
+
+                    # Save the ANNOTATED frame (with green boxes and labels)
+                    cv2.imwrite(image_path, annotated_frame)
+                    logger.info(f"Saved authorized access image: {filename}")
+
+                # Log attendance ONCE per track
+                self.db_manager.log_access(
+                    camera_name=self.config.CAMERA_NAME,
+                    camera_location=self.config.CAMERA_LOCATION,
+                    subject_name=face['subject_name'],
+                    is_authorized=True,
+                    similarity=face['similarity'],
+                    face_box=face['box'],
+                    image_path=filename,
+                    department=face.get('department'),
+                    sub_department=face.get('sub_department'),
+                    metadata={
+                        'age': face.get('age'),
+                        'gender': face.get('gender')
+                    },
+                    track_id=track_id
+                )
+
+                # Mark track as logged
+                self.face_tracker.mark_track_logged(track_id)
+                logger.info(f"✓ Logged attendance for {face['subject_name']} (track: {track_id})")
+            else:
+                logger.debug(f"⏭ Skipping log for {face['subject_name']} (track: {track_id}) - already logged")
+
+        # Process unauthorized faces with tracking
         for face in unauthorized_faces:
-            image_path = None
-            filename = None
+            # Prepare face data for tracker
+            face_data = {
+                'box': face['box'],
+                'subject_name': face.get('subject_name'),
+                'embedding': None,
+                'similarity': face.get('similarity')
+            }
 
-            # Save annotated image with RED boxes for unauthorized access
-            if self.config.SAVE_DEBUG_IMAGES:
-                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-                # Include person name if recognized (low similarity) or "Unknown"
-                person_name = face.get('subject_name') or 'Unknown'
-                safe_name = person_name.replace(' ', '_').replace('/', '_')
-                filename = f"unauthorized_{safe_name}_{timestamp}.jpg"
-                image_path = f"{self.config.DEBUG_IMAGE_PATH}/{filename}"
+            # Process face through tracker
+            track_id, is_new_track = self.face_tracker.process_face(face_data)
 
-                # Save the ANNOTATED frame (with red boxes and labels)
-                cv2.imwrite(image_path, annotated_frame)
-                logger.info(f"Saved unauthorized access image: {filename}")
+            # Only log if this track hasn't been logged yet
+            if not self.face_tracker.is_track_logged(track_id):
+                image_path = None
+                filename = None
 
-            log_id = self.db_manager.log_access(
-                camera_name=self.config.CAMERA_NAME,
-                camera_location=self.config.CAMERA_LOCATION,
-                subject_name=face['subject_name'],
-                is_authorized=False,
-                similarity=face.get('similarity'),
-                face_box=face['box'],
-                alert_sent=False,
-                image_path=filename,
-                department=face.get('department'),
-                sub_department=face.get('sub_department'),
-                metadata={'reason': face.get('reason')}
-            )
+                # Save annotated image with RED boxes for unauthorized access
+                if self.config.SAVE_DEBUG_IMAGES:
+                    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+                    # Include person name if recognized (low similarity) or "Unknown"
+                    person_name = face.get('subject_name') or 'Unknown'
+                    safe_name = person_name.replace(' ', '_').replace('/', '_')
+                    filename = f"unauthorized_{safe_name}_{track_id}_{timestamp}.jpg"
+                    image_path = f"{self.config.DEBUG_IMAGE_PATH}/{filename}"
 
-            # Send alert
-            alert_sent = self.alert_manager.send_alert(
-                subject_name=face['subject_name'] or "Unknown",
-                camera_name=self.config.CAMERA_NAME,
-                camera_location=self.config.CAMERA_LOCATION,
-                similarity=face.get('similarity'),
-                face_count=len(unauthorized_faces)
-            )
+                    # Save the ANNOTATED frame (with red boxes and labels)
+                    cv2.imwrite(image_path, annotated_frame)
+                    logger.info(f"Saved unauthorized access image: {filename}")
 
-            # Update log with alert status
-            if alert_sent and log_id:
-                try:
-                    with self.db_manager.connection.cursor() as cursor:
-                        cursor.execute(
-                            "UPDATE access_logs SET alert_sent = TRUE WHERE id = %s",
-                            (log_id,)
-                        )
-                        self.db_manager.connection.commit()
-                except Exception as e:
-                    logger.error(f"Failed to update alert status: {e}")
+                log_id = self.db_manager.log_access(
+                    camera_name=self.config.CAMERA_NAME,
+                    camera_location=self.config.CAMERA_LOCATION,
+                    subject_name=face['subject_name'],
+                    is_authorized=False,
+                    similarity=face.get('similarity'),
+                    face_box=face['box'],
+                    alert_sent=False,
+                    image_path=filename,
+                    department=face.get('department'),
+                    sub_department=face.get('sub_department'),
+                    metadata={'reason': face.get('reason')},
+                    track_id=track_id
+                )
+
+                # Send alert
+                alert_sent = self.alert_manager.send_alert(
+                    subject_name=face['subject_name'] or "Unknown",
+                    camera_name=self.config.CAMERA_NAME,
+                    camera_location=self.config.CAMERA_LOCATION,
+                    similarity=face.get('similarity'),
+                    face_count=len(unauthorized_faces)
+                )
+
+                # Update log with alert status
+                if alert_sent and log_id:
+                    try:
+                        with self.db_manager.connection.cursor() as cursor:
+                            cursor.execute(
+                                "UPDATE access_logs SET alert_sent = TRUE WHERE id = %s",
+                                (log_id,)
+                            )
+                            self.db_manager.connection.commit()
+                    except Exception as e:
+                        logger.error(f"Failed to update alert status: {e}")
+
+                # Mark track as logged
+                self.face_tracker.mark_track_logged(track_id)
+                logger.info(f"⚠ Logged unauthorized access (track: {track_id})")
+            else:
+                logger.debug(f"⏭ Skipping unauthorized log (track: {track_id}) - already logged")
 
         return annotated_frame
 

@@ -28,45 +28,119 @@
 
     <!-- Main Container -->
     <div class="container">
-        <!-- Cartes de Statistiques Résumées -->
+        <!-- Cartes de Statistiques Résumées - Professional Design -->
         <div class="stats-grid">
-            <div class="stat-card">
-                <div class="stat-icon">🪖</div>
-                <div class="stat-content">
-                    <h3 class="stat-value" id="totalToday">0</h3>
-                    <p class="stat-label">Accès Total Aujourd'hui</p>
+            <!-- Row 1: Primary Metrics -->
+            <div class="stat-card primary-metric">
+                <div class="card-header">
+                    <div class="stat-icon-modern">👥</div>
+                    <div class="card-title">
+                        <span class="label-small">Base de Données</span>
+                        <h4 class="label-main">Personnel Enregistré</h4>
+                    </div>
+                </div>
+                <div class="stat-content-modern">
+                    <h2 class="stat-value-large" id="totalPersonnel">0</h2>
+                    <p class="stat-description">Total personnes dans le système</p>
                 </div>
             </div>
 
-            <div class="stat-card success">
-                <div class="stat-icon">✅</div>
-                <div class="stat-content">
-                    <h3 class="stat-value" id="authorizedToday">0</h3>
-                    <p class="stat-label">Personnel Autorisé</p>
+            <div class="stat-card primary-metric success">
+                <div class="card-header">
+                    <div class="stat-icon-modern">🪂</div>
+                    <div class="card-title">
+                        <span class="label-small">Aujourd'hui</span>
+                        <h4 class="label-main">Parachutistes Actifs</h4>
+                    </div>
+                </div>
+                <div class="stat-content-modern">
+                    <h2 class="stat-value-large" id="uniqueVisitorsToday">0</h2>
+                    <p class="stat-description">Personnes détectées aujourd'hui</p>
                 </div>
             </div>
 
-            <div class="stat-card danger">
-                <div class="stat-icon">🚨</div>
-                <div class="stat-content">
-                    <h3 class="stat-value" id="unauthorizedToday">0</h3>
-                    <p class="stat-label">Alertes de Sécurité</p>
+            <div class="stat-card primary-metric info">
+                <div class="card-header">
+                    <div class="stat-icon-modern">📹</div>
+                    <div class="card-title">
+                        <span class="label-small">Statut en Direct</span>
+                        <h4 class="label-main">Caméras Actives</h4>
+                    </div>
+                </div>
+                <div class="stat-content-modern">
+                    <h2 class="stat-value-large" id="activeCameras">0</h2>
+                    <p class="stat-description">Actives dans les 2 dernières heures</p>
                 </div>
             </div>
 
-            <div class="stat-card info">
-                <div class="stat-icon">🪂</div>
-                <div class="stat-content">
-                    <h3 class="stat-value" id="uniqueEmployees">0</h3>
-                    <p class="stat-label">Parachutistes Actifs</p>
+            <div class="stat-card primary-metric danger">
+                <div class="card-header">
+                    <div class="stat-icon-modern">🚨</div>
+                    <div class="card-title">
+                        <span class="label-small">Aujourd'hui</span>
+                        <h4 class="label-main">Alertes Sécurité</h4>
+                    </div>
+                </div>
+                <div class="stat-content-modern">
+                    <h2 class="stat-value-large" id="unauthorizedToday">0</h2>
+                    <p class="stat-description">Tentatives non autorisées</p>
                 </div>
             </div>
 
-            <div class="stat-card">
-                <div class="stat-icon">📹</div>
-                <div class="stat-content">
-                    <h3 class="stat-value" id="activeCameras">0</h3>
-                    <p class="stat-label">Caméras de Surveillance</p>
+            <!-- Row 2: Operational Metrics -->
+            <div class="stat-card operational-metric">
+                <div class="card-header">
+                    <div class="stat-icon-modern">📊</div>
+                    <div class="card-title">
+                        <span class="label-small">Activité</span>
+                        <h4 class="label-main">Total Détections</h4>
+                    </div>
+                </div>
+                <div class="stat-content-modern">
+                    <h2 class="stat-value-large" id="totalToday">0</h2>
+                    <p class="stat-description">Détections totales aujourd'hui</p>
+                </div>
+            </div>
+
+            <div class="stat-card operational-metric">
+                <div class="card-header">
+                    <div class="stat-icon-modern">⚡</div>
+                    <div class="card-title">
+                        <span class="label-small">Performance</span>
+                        <h4 class="label-main">Taux de Détection</h4>
+                    </div>
+                </div>
+                <div class="stat-content-modern">
+                    <h2 class="stat-value-large" id="detectionRate">0</h2>
+                    <p class="stat-description">Détections/heure en moyenne</p>
+                </div>
+            </div>
+
+            <div class="stat-card operational-metric warning">
+                <div class="card-header">
+                    <div class="stat-icon-modern">⚠️</div>
+                    <div class="card-title">
+                        <span class="label-small">Indicateur</span>
+                        <h4 class="label-main">Taux d'Alerte</h4>
+                    </div>
+                </div>
+                <div class="stat-content-modern">
+                    <h2 class="stat-value-large" id="alertRate">0%</h2>
+                    <p class="stat-description">Pourcentage d'accès non autorisés</p>
+                </div>
+            </div>
+
+            <div class="stat-card operational-metric info-alt">
+                <div class="card-header">
+                    <div class="stat-icon-modern">🕐</div>
+                    <div class="card-title">
+                        <span class="label-small">Pic d'Activité</span>
+                        <h4 class="label-main">Heure de Pointe</h4>
+                    </div>
+                </div>
+                <div class="stat-content-modern">
+                    <h2 class="stat-value-large" id="peakHour">--:--</h2>
+                    <p class="stat-description">Heure la plus active aujourd'hui</p>
                 </div>
             </div>
         </div>

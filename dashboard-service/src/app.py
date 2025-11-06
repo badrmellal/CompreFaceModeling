@@ -346,16 +346,16 @@ def get_camera_status():
 
         with DatabaseConnection() as conn:
             with conn.cursor(cursor_factory=RealDictCursor) as cursor:
-                # Check for recent activity (last hour)
+                # Check for recent activity (last 2 hours)
                 cursor.execute("""
                     SELECT
                         camera_name,
                         camera_location,
                         MAX(timestamp) as last_activity,
-                        COUNT(*) as detections_last_hour,
-                        COUNT(CASE WHEN is_authorized = FALSE THEN 1 END) as unauthorized_last_hour
+                        COUNT(*) as detections_last_2hours,
+                        COUNT(CASE WHEN is_authorized = FALSE THEN 1 END) as unauthorized_last_2hours
                     FROM access_logs
-                    WHERE timestamp >= NOW() - INTERVAL '1 hour'
+                    WHERE timestamp >= NOW() - INTERVAL '2 hours'
                     GROUP BY camera_name, camera_location
                     ORDER BY last_activity DESC
                 """)
@@ -370,8 +370,8 @@ def get_camera_status():
                         'camera_name': camera_name,
                         'camera_location': camera_location,
                         'last_activity': None,
-                        'detections_last_hour': 0,
-                        'unauthorized_last_hour': 0
+                        'detections_last_2hours': 0,
+                        'unauthorized_last_2hours': 0
                     }]
 
                 for camera in cameras:
@@ -386,21 +386,26 @@ def get_camera_status():
 
                     # Simple, reliable status determination based on database activity
                     # If camera service is writing to DB, camera + service are working
-                    if seconds_since_activity < 180:  # Activity within 3 minutes
+                    # Camera is considered active if last activity was within 2 hours (7200 seconds)
+                    if seconds_since_activity < 7200:  # Activity within 2 hours
                         camera['status'] = 'online'
-                        camera['status_reason'] = f'Active - Last detection {int(seconds_since_activity)} seconds ago'
-                    elif seconds_since_activity < 600:  # Activity within 10 minutes
-                        camera['status'] = 'warning'
-                        camera['status_reason'] = f'No recent detections for {int(seconds_since_activity / 60)} minutes'
+                        minutes_ago = int(seconds_since_activity / 60)
+                        if seconds_since_activity < 60:
+                            camera['status_reason'] = f'Active - Last detection {int(seconds_since_activity)} seconds ago'
+                        else:
+                            camera['status_reason'] = f'Active - Last detection {minutes_ago} minutes ago'
                     else:
-                        # No recent activity - check if camera service might be starting up
-                        # or if there simply haven't been any faces to detect
+                        # No recent activity within 2 hours - camera is offline
                         camera['status'] = 'offline'
                         if seconds_since_activity == float('inf'):
                             camera['status_reason'] = 'Camera service starting up or no activity recorded yet'
                         else:
                             minutes_ago = int(seconds_since_activity / 60)
-                            camera['status_reason'] = f'No activity for {minutes_ago} minutes - Camera or service may be offline'
+                            hours_ago = minutes_ago / 60
+                            if hours_ago >= 1:
+                                camera['status_reason'] = f'No activity for {hours_ago:.1f} hours - Camera or service is offline'
+                            else:
+                                camera['status_reason'] = f'No activity for {minutes_ago} minutes - Camera or service is offline'
 
                     # Add camera IP for reference
                     camera['camera_ip'] = camera_ip

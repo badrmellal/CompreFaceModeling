@@ -39,4 +39,5 @@ class ENV(Constants):
 
 LOGGING_LEVEL = logging._nameToLevel[ENV.LOGGING_LEVEL_NAME]
 ENV_MAIN = ENV
-SKIPPED_PLUGINS = ["insightface.PoseEstimator", "facemask.MaskDetector", "facenet.PoseEstimator"]
+# Skipped plugins - DO NOT include pose estimator (needed for side profile rejection)
+SKIPPED_PLUGINS = ["facemask.MaskDetector"]

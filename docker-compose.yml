@@ -73,6 +73,8 @@ services:
     restart: always
     image: ${registry}compreface-core:${CORE_VERSION}
     container_name: "compreface-core"
+    build:
+      context: ./embedding-calculator
     environment:
       - ML_PORT=3000
       - IMG_LENGTH_LIMIT=${max_detect_size}

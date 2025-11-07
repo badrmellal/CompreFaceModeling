@@ -85,6 +85,11 @@ class Config:
     MAX_FACES_PER_FRAME = int(os.getenv('MAX_FACES_PER_FRAME', '10'))
     RECONNECT_DELAY = int(os.getenv('RECONNECT_DELAY', '5'))  # Seconds
 
+    # RTSP Optimization Configuration
+    RTSP_TRANSPORT = os.getenv('RTSP_TRANSPORT', 'tcp')  # tcp or udp
+    RTSP_BUFFER_SIZE = int(os.getenv('RTSP_BUFFER_SIZE', '1'))  # Frames
+    RTSP_TIMEOUT = int(os.getenv('RTSP_TIMEOUT', '5000'))  # Milliseconds
+
     # Debugging
     SAVE_DEBUG_IMAGES = os.getenv('SAVE_DEBUG_IMAGES', 'false').lower() == 'true'
     DEBUG_IMAGE_PATH = '/app/logs/debug_images'
@@ -784,21 +789,42 @@ class CameraService:
                 logger.error(f"Error in cleanup loop: {e}")
 
     def connect_camera(self) -> Optional[cv2.VideoCapture]:
-        """Connect to Hikvision camera via RTSP"""
+        """Connect to Hikvision camera via RTSP with optimized settings"""
         logger.info(f"Connecting to camera: {self.config.CAMERA_NAME}")
         logger.info(f"RTSP URL: {self.config.CAMERA_RTSP_URL}")
+        logger.info(f"RTSP Transport: {self.config.RTSP_TRANSPORT}")
+        logger.info(f"RTSP Buffer: {self.config.RTSP_BUFFER_SIZE} frames")
 
-        cap = cv2.VideoCapture(self.config.CAMERA_RTSP_URL)
+        # Build RTSP URL with transport protocol
+        rtsp_url = self.config.CAMERA_RTSP_URL
+        if '?' in rtsp_url:
+            rtsp_url += f"&tcp" if self.config.RTSP_TRANSPORT == 'tcp' else ""
+        else:
+            rtsp_url += f"?tcp" if self.config.RTSP_TRANSPORT == 'tcp' else ""
+
+        # Create VideoCapture with backend selection for better RTSP support
+        # CAP_FFMPEG is best for RTSP streams
+        cap = cv2.VideoCapture(rtsp_url, cv2.CAP_FFMPEG)
 
         if cap.isOpened():
             # Set resolution
             cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.config.FRAME_WIDTH)
             cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.config.FRAME_HEIGHT)
 
-            # Set buffer size to reduce latency
-            cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+            # Set buffer size to reduce latency (CRITICAL for real-time)
+            cap.set(cv2.CAP_PROP_BUFFERSIZE, self.config.RTSP_BUFFER_SIZE)
 
-            logger.info("✓ Camera connected successfully")
+            # Set FPS if possible (not all cameras support this)
+            cap.set(cv2.CAP_PROP_FPS, 25)
+
+            # Get actual resolution
+            actual_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+            actual_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+            actual_fps = cap.get(cv2.CAP_PROP_FPS)
+
+            logger.info(f"✓ Camera connected successfully")
+            logger.info(f"✓ Resolution: {actual_width}x{actual_height}")
+            logger.info(f"✓ FPS: {actual_fps}")
             return cap
         else:
             logger.error("✗ Failed to connect to camera")

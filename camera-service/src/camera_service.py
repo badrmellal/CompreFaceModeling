@@ -543,7 +543,19 @@ class FaceRecognitionService:
             if response.status_code == 200:
                 data = response.json()
                 results = data.get('result', [])
+
+                # DEBUG: Log raw API response to verify pose data
+                logger.info(f"========== API RESPONSE DEBUG ==========")
                 logger.info(f"Detected {len(results)} face(s) in frame")
+                for i, result in enumerate(results):
+                    logger.info(f"Face #{i+1} raw data: {json.dumps(result, indent=2)}")
+                    pose = result.get('pose')
+                    if pose:
+                        logger.info(f"✓ Pose data found: yaw={pose.get('yaw')}°, pitch={pose.get('pitch')}°, roll={pose.get('roll')}°")
+                    else:
+                        logger.warning(f"✗ NO POSE DATA in response for face #{i+1}!")
+                logger.info(f"========================================")
+
                 return results
             else:
                 logger.error(f"CompreFace API error: {response.status_code} - {response.text}")
@@ -565,6 +577,12 @@ class FaceRecognitionService:
         Returns:
             (is_valid: bool, reason: str)
         """
+        # DEBUG: Log what we received
+        logger.info(f"========== QUALITY CHECK DEBUG ==========")
+        logger.info(f"Pose parameter received: {pose}")
+        logger.info(f"MAX_YAW_ANGLE setting: {self.config.MAX_YAW_ANGLE}°")
+        logger.info(f"MAX_PITCH_ANGLE setting: {self.config.MAX_PITCH_ANGLE}°")
+
         # Calculate face dimensions
         face_width = box.get('x_max', 0) - box.get('x_min', 0)
         face_height = box.get('y_max', 0) - box.get('y_min', 0)
@@ -573,28 +591,50 @@ class FaceRecognitionService:
         # Check detection confidence
         prob = box.get('probability', detection_prob or 1.0)
         if prob < self.config.DET_PROB_THRESHOLD:
+            logger.info(f"✗ REJECTED: Low detection confidence ({prob:.1%})")
+            logger.info(f"========================================")
             return False, f'Low detection confidence ({prob:.1%}), face not clear enough'
 
         # Check minimum face size (distance requirement)
         if face_width < self.config.MIN_FACE_WIDTH or face_height < self.config.MIN_FACE_HEIGHT:
             estimated_distance = "more than 3 meters"
+            logger.info(f"✗ REJECTED: Face too small ({face_width}x{face_height}px)")
+            logger.info(f"========================================")
             return False, f'Face too small ({face_width}x{face_height}px), person is {estimated_distance} away - please move closer'
 
         # Check minimum face area
         if face_area < self.config.MIN_FACE_AREA:
+            logger.info(f"✗ REJECTED: Face area too small ({face_area}px²)")
+            logger.info(f"========================================")
             return False, f'Face area too small ({face_area}px²), insufficient detail for reliable recognition'
 
         # Check face pose (reject side profiles)
         if pose:
             yaw = pose.get('yaw', 0)
             pitch = pose.get('pitch', 0)
+            roll = pose.get('roll', 0)
+
+            logger.info(f"✓ POSE DATA AVAILABLE: yaw={yaw:.1f}°, pitch={pitch:.1f}°, roll={roll:.1f}°")
+            logger.info(f"Checking yaw ({abs(yaw):.1f}°) against MAX_YAW_ANGLE ({self.config.MAX_YAW_ANGLE}°)")
+            logger.info(f"Checking pitch ({abs(pitch):.1f}°) against MAX_PITCH_ANGLE ({self.config.MAX_PITCH_ANGLE}°)")
 
             if abs(yaw) > self.config.MAX_YAW_ANGLE:
+                logger.info(f"✗ REJECTED: Face turned too much sideways (yaw: {yaw:.1f}° > {self.config.MAX_YAW_ANGLE}°)")
+                logger.info(f"========================================")
                 return False, f'Face turned too much sideways (yaw: {yaw:.1f}°), please face the camera directly'
 
             if abs(pitch) > self.config.MAX_PITCH_ANGLE:
+                logger.info(f"✗ REJECTED: Face tilted too much (pitch: {pitch:.1f}° > {self.config.MAX_PITCH_ANGLE}°)")
+                logger.info(f"========================================")
                 return False, f'Face tilted too much (pitch: {pitch:.1f}°), please look straight at the camera'
 
+            logger.info(f"✓ POSE CHECK PASSED: yaw={yaw:.1f}°, pitch={pitch:.1f}° within limits")
+        else:
+            logger.warning(f"✗ WARNING: NO POSE DATA PROVIDED TO QUALITY CHECK!")
+            logger.warning(f"This means pose detection is NOT working - faces from back/side will NOT be rejected!")
+
+        logger.info(f"✓ ALL CHECKS PASSED")
+        logger.info(f"========================================")
         return True, 'Face meets military-grade quality standards'
 
     def process_recognition_results(self, results: List[Dict]) -> tuple:
@@ -610,6 +650,11 @@ class FaceRecognitionService:
             box = result.get('box', {})
             subjects = result.get('subjects', [])
             pose = result.get('pose')  # Extract pose data (yaw, pitch, roll)
+
+            # DEBUG: Log pose extraction
+            logger.info(f"========== PROCESSING RESULT ==========")
+            logger.info(f"Extracted pose from result: {pose}")
+            logger.info(f"Calling _check_face_quality with pose={pose}")
 
             # MILITARY-GRADE QUALITY CHECK: Verify face is close enough, clear enough, and frontal
             detection_prob = result.get('detection_probability', box.get('probability', 1.0))
@@ -987,10 +1032,23 @@ class CameraService:
 
     def run(self):
         """Main service loop"""
+        logger.info("="*60)
         logger.info("Starting 1BIP Camera Service")
+        logger.info("="*60)
         logger.info(f"Camera: {self.config.CAMERA_NAME}")
         logger.info(f"Location: {self.config.CAMERA_LOCATION}")
         logger.info(f"Processing every {self.config.FRAME_SKIP} frames")
+        logger.info(f"")
+        logger.info(f"POSE DETECTION SETTINGS:")
+        logger.info(f"  MAX_YAW_ANGLE: {self.config.MAX_YAW_ANGLE}° (reject side profiles)")
+        logger.info(f"  MAX_PITCH_ANGLE: {self.config.MAX_PITCH_ANGLE}° (reject looking down/up)")
+        logger.info(f"")
+        logger.info(f"QUALITY SETTINGS:")
+        logger.info(f"  MIN_FACE_WIDTH: {self.config.MIN_FACE_WIDTH}px")
+        logger.info(f"  MIN_FACE_HEIGHT: {self.config.MIN_FACE_HEIGHT}px")
+        logger.info(f"  DET_PROB_THRESHOLD: {self.config.DET_PROB_THRESHOLD}")
+        logger.info(f"  SIMILARITY_THRESHOLD: {self.config.SIMILARITY_THRESHOLD}")
+        logger.info("="*60)
 
         self.running = True
         cap = None

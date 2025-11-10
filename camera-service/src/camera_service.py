@@ -89,6 +89,13 @@ class Config:
     RTSP_TRANSPORT = os.getenv('RTSP_TRANSPORT', 'tcp')  # tcp or udp
     RTSP_BUFFER_SIZE = int(os.getenv('RTSP_BUFFER_SIZE', '1'))  # Frames
     RTSP_TIMEOUT = int(os.getenv('RTSP_TIMEOUT', '5000'))  # Milliseconds
+    RTSP_STIMEOUT = int(os.getenv('RTSP_STIMEOUT', '5000000'))  # Microseconds for FFmpeg stimeout
+    RTSP_BUFFER_SIZE_BYTES = int(os.getenv('RTSP_BUFFER_SIZE_BYTES', '102400'))  # Socket buffer size
+    RTSP_LOW_DELAY = os.getenv('RTSP_LOW_DELAY', 'true').lower() == 'true'
+
+    # Capture Recovery Configuration
+    EMPTY_FRAME_MAX_RETRIES = int(os.getenv('EMPTY_FRAME_MAX_RETRIES', '5'))
+    EMPTY_FRAME_RETRY_DELAY_MS = int(os.getenv('EMPTY_FRAME_RETRY_DELAY_MS', '100'))
 
     # Debugging
     SAVE_DEBUG_IMAGES = os.getenv('SAVE_DEBUG_IMAGES', 'false').lower() == 'true'
@@ -795,6 +802,19 @@ class CameraService:
         logger.info(f"RTSP Transport: {self.config.RTSP_TRANSPORT}")
         logger.info(f"RTSP Buffer: {self.config.RTSP_BUFFER_SIZE} frames")
 
+        # Configure FFmpeg capture options for low-latency, reliable streaming
+        ffmpeg_capture_options = [
+            f"rtsp_transport;{self.config.RTSP_TRANSPORT}",
+            f"buffer_size;{self.config.RTSP_BUFFER_SIZE_BYTES}",
+            f"stimeout;{self.config.RTSP_STIMEOUT}",
+            "reorder_queue_size;0"
+        ]
+
+        if self.config.RTSP_LOW_DELAY:
+            ffmpeg_capture_options.append("flags;low_delay")
+
+        os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "|".join(ffmpeg_capture_options)
+
         # Build RTSP URL with transport protocol
         rtsp_url = self.config.CAMERA_RTSP_URL
         if '?' in rtsp_url:
@@ -1020,6 +1040,7 @@ class CameraService:
 
         self.running = True
         cap = None
+        empty_frame_streak = 0
 
         while self.running:
             try:
@@ -1035,12 +1056,24 @@ class CameraService:
                 ret, frame = cap.read()
 
                 if not ret:
-                    logger.error("Failed to read frame")
+                    empty_frame_streak += 1
+                    logger.warning("Empty frame received from camera (streak: %s)", empty_frame_streak)
+
+                    if empty_frame_streak <= self.config.EMPTY_FRAME_MAX_RETRIES:
+                        # Try to flush decoder buffer before reconnecting
+                        for _ in range(3):
+                            cap.grab()
+                        time.sleep(self.config.EMPTY_FRAME_RETRY_DELAY_MS / 1000.0)
+                        continue
+
+                    logger.error("Repeated empty frames, reconnecting to camera")
+                    empty_frame_streak = 0
                     cap.release()
                     cap = None
                     time.sleep(self.config.RECONNECT_DELAY)
                     continue
 
+                empty_frame_streak = 0
                 self.frame_count += 1
 
                 # Process every Nth frame

@@ -15,7 +15,7 @@ import numpy as np
 from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional, Tuple
 import threading
-from queue import Queue
+from queue import Queue, Empty, Full
 import psycopg2
 from psycopg2.extras import RealDictCursor
 import uuid
@@ -748,6 +748,9 @@ class CameraService:
         self.frame_count = 0
         self.latest_frame = None  # Store latest frame for streaming
         self.frame_lock = threading.Lock()
+        self.latest_annotated_frame = None
+        self.recognition_queue: "Queue[Tuple[int, np.ndarray]]" = Queue(maxsize=1)
+        self.recognition_thread: Optional[threading.Thread] = None
 
         # Create debug image directory if enabled
         if self.config.SAVE_DEBUG_IMAGES:
@@ -851,6 +854,46 @@ class CameraService:
         else:
             logger.error("✗ Failed to connect to camera")
             return None
+
+    def submit_frame_for_recognition(self, frame_number: int, frame: np.ndarray):
+        """Queue frame for asynchronous recognition, dropping oldest if queue full"""
+        try:
+            if self.recognition_queue.full():
+                try:
+                    dropped_frame_number, _ = self.recognition_queue.get_nowait()
+                    self.recognition_queue.task_done()
+                    logger.debug("Dropped stale frame #%s from recognition queue", dropped_frame_number)
+                except Empty:
+                    pass
+            self.recognition_queue.put_nowait((frame_number, frame.copy()))
+            with self.frame_lock:
+                self.latest_annotated_frame = None
+        except Full:
+            logger.debug("Recognition queue still full; frame #%s dropped", frame_number)
+
+    def recognition_worker(self):
+        """Background worker that processes frames through recognition pipeline"""
+        logger.info("Recognition worker started")
+        while self.running or not self.recognition_queue.empty():
+            try:
+                frame_number, frame = self.recognition_queue.get(timeout=0.5)
+            except Empty:
+                continue
+
+            start_time = time.time()
+            try:
+                logger.info(f"Processing frame #{frame_number}")
+                annotated_frame = self.process_frame(frame)
+                with self.frame_lock:
+                    self.latest_annotated_frame = annotated_frame
+            except Exception as e:
+                logger.error(f"Recognition worker error: {e}", exc_info=True)
+            finally:
+                self.recognition_queue.task_done()
+                elapsed = time.time() - start_time
+                logger.debug(f"Frame #{frame_number} processed in {elapsed:.3f}s")
+
+        logger.info("Recognition worker stopped")
 
     def draw_face_boxes(self, frame, authorized_faces, unauthorized_faces):
         """Draw bounding boxes and labels on frame"""
@@ -1041,6 +1084,10 @@ class CameraService:
         logger.info(f"Processing every {self.config.FRAME_SKIP} frames")
 
         self.running = True
+        if self.recognition_thread is None or not self.recognition_thread.is_alive():
+            self.recognition_thread = threading.Thread(target=self.recognition_worker, daemon=True)
+            self.recognition_thread.start()
+
         cap = None
         empty_frame_streak = 0
 
@@ -1078,34 +1125,29 @@ class CameraService:
                 empty_frame_streak = 0
                 self.frame_count += 1
 
-                # Process every Nth frame
+                # Update latest raw frame for streaming
+                with self.frame_lock:
+                    self.latest_frame = frame
+
+                # Queue frame for recognition every Nth frame
                 if self.frame_count % self.config.FRAME_SKIP == 0:
-                    logger.info(f"Processing frame #{self.frame_count}")
-                    processed_frame = self.process_frame(frame)
-
-                    # Store latest frame for streaming
-                    with self.frame_lock:
-                        self.latest_frame = processed_frame
-
-                    # Optional: Display frame (for debugging)
-                    # cv2.imshow('1BIP Camera Service', processed_frame)
-                    # if cv2.waitKey(1) & 0xFF == ord('q'):
-                    #     break
-                else:
-                    # For non-processed frames, just store for streaming
-                    with self.frame_lock:
-                        self.latest_frame = frame
+                    self.submit_frame_for_recognition(self.frame_count, frame)
 
             except KeyboardInterrupt:
                 logger.info("Received shutdown signal")
+                self.running = False
                 break
             except Exception as e:
                 logger.error(f"Error in main loop: {e}", exc_info=True)
                 time.sleep(1)
 
         # Cleanup
+        self.running = False
         if cap:
             cap.release()
+        if self.recognition_thread and self.recognition_thread.is_alive():
+            self.recognition_thread.join(timeout=2)
+        self.recognition_thread = None
         cv2.destroyAllWindows()
         self.db_manager.close()
         logger.info("Camera service stopped")

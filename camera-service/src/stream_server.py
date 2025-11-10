@@ -56,10 +56,11 @@ class StreamServer:
         def snapshot():
             """Get latest frame as JPEG (optimized for web display)"""
             with self.camera_service.frame_lock:
-                if self.camera_service.latest_frame is None:
+                source_frame = self.camera_service.latest_annotated_frame or self.camera_service.latest_frame
+                if source_frame is None:
                     return "No frame available", 503
 
-                frame = self.camera_service.latest_frame.copy()
+                frame = source_frame.copy()
 
             # Resize for web display
             frame_resized = cv2.resize(frame, (self.stream_width, self.stream_height),
@@ -84,11 +85,12 @@ class StreamServer:
             try:
                 # Get latest frame
                 with self.camera_service.frame_lock:
-                    if self.camera_service.latest_frame is None:
+                    source_frame = self.camera_service.latest_annotated_frame or self.camera_service.latest_frame
+                    if source_frame is None:
                         time.sleep(0.05)
                         continue
 
-                    frame = self.camera_service.latest_frame.copy()
+                    frame = source_frame.copy()
 
                 # Resize frame for streaming
                 # Full resolution is still used for face recognition

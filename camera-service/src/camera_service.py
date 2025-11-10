@@ -38,7 +38,7 @@ class Config:
     # Camera Configuration
     CAMERA_RTSP_URL = os.getenv('CAMERA_RTSP_URL', 'rtsp://admin:password@192.168.1.100:554/Streaming/Channels/101')
     CAMERA_NAME = os.getenv('CAMERA_NAME', 'Main Entrance Gate')
-    CAMERA_LOCATION = os.getenv('CAMERA_LOCATION', 'Building A - Main Gate')
+    CAMERA_LOCATION = os.getenv('CAMERA_LOCATION', 'Main Gate PP')
 
     # Frame Processing Configuration
     FRAME_SKIP = int(os.getenv('FRAME_SKIP', '5'))  # Process every Nth frame
@@ -101,6 +101,8 @@ class Config:
     SAVE_DEBUG_IMAGES = os.getenv('SAVE_DEBUG_IMAGES', 'false').lower() == 'true'
     DEBUG_IMAGE_PATH = '/app/logs/debug_images'
 
+    # Streaming Configuration
+    ENABLE_STREAMING = os.getenv('ENABLE_STREAMING', 'true').lower() == 'true'
 
 class DatabaseManager:
     """Manages database connections and access logging"""
@@ -1120,12 +1122,15 @@ def main():
 
     service = CameraService(config)
 
-    # Start video streaming server in separate thread
-    from stream_server import StreamServer
-    stream_server = StreamServer(service, port=5001)
-    stream_thread = threading.Thread(target=stream_server.run, daemon=True)
-    stream_thread.start()
-    logger.info("Video streaming server started on port 5001")
+    stream_thread = None
+    if config.ENABLE_STREAMING:
+        from stream_server import StreamServer
+        stream_server = StreamServer(service, port=5001)
+        stream_thread = threading.Thread(target=stream_server.run, daemon=True)
+        stream_thread.start()
+        logger.info("Video streaming server started on port 5001")
+    else:
+        logger.info("Video streaming disabled via ENABLE_STREAMING=false")
 
     try:
         service.run()

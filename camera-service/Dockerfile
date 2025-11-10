@@ -17,6 +17,7 @@ RUN apt-get update && apt-get install -y \
     libxrender-dev \
     libgomp1 \
     libgtk-3-0 \
+  ffmpeg \
     libavcodec-dev \
     libavformat-dev \
     libswscale-dev \

@@ -19,7 +19,6 @@ from queue import Queue
 import psycopg2
 from psycopg2.extras import RealDictCursor
 import uuid
-import subprocess
 
 # Configure logging
 logging.basicConfig(
@@ -93,10 +92,6 @@ class Config:
     RTSP_STIMEOUT = int(os.getenv('RTSP_STIMEOUT', '5000000'))  # Microseconds for FFmpeg stimeout
     RTSP_BUFFER_SIZE_BYTES = int(os.getenv('RTSP_BUFFER_SIZE_BYTES', '102400'))  # Socket buffer size
     RTSP_LOW_DELAY = os.getenv('RTSP_LOW_DELAY', 'true').lower() == 'true'
-
-    # Video Input Configuration
-    VIDEO_INPUT_METHOD = os.getenv('VIDEO_INPUT_METHOD', 'opencv').lower()  # opencv or ffmpeg
-    FFMPEG_BINARY = os.getenv('FFMPEG_BINARY', 'ffmpeg')
 
     # Capture Recovery Configuration
     EMPTY_FRAME_MAX_RETRIES = int(os.getenv('EMPTY_FRAME_MAX_RETRIES', '5'))
@@ -740,78 +735,6 @@ class FaceRecognitionService:
             return {}
 
 
-class FFmpegStreamReader:
-    """Reads frames from FFmpeg via subprocess for robust capture"""
-
-    def __init__(self, config: Config):
-        self.config = config
-        self.process: Optional[subprocess.Popen] = None
-        self.frame_width = self.config.FRAME_WIDTH
-        self.frame_height = self.config.FRAME_HEIGHT
-        self.frame_size = self.frame_width * self.frame_height * 3
-
-    def build_command(self) -> List[str]:
-        scale_filter = f"scale={self.frame_width}:{self.frame_height}"
-        command = [
-            self.config.FFMPEG_BINARY,
-            '-hide_banner', '-loglevel', 'error',
-            '-rtsp_transport', self.config.RTSP_TRANSPORT,
-            '-i', self.config.CAMERA_RTSP_URL,
-            '-an', '-sn', '-dn',
-            '-vf', scale_filter,
-            '-pix_fmt', 'bgr24',
-            '-f', 'rawvideo', '-'
-        ]
-        if self.config.RTSP_LOW_DELAY:
-            command.extend(['-fflags', 'nobuffer'])
-        return command
-
-    def start(self):
-        self.stop()
-        command = self.build_command()
-        logger.info(
-            "Starting FFmpeg reader (binary=%s, transport=%s, size=%sx%s)",
-            self.config.FFMPEG_BINARY,
-            self.config.RTSP_TRANSPORT,
-            self.frame_width,
-            self.frame_height
-        )
-        self.process = subprocess.Popen(
-            command,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.DEVNULL,
-            bufsize=self.frame_size
-        )
-
-    def stop(self):
-        if self.process:
-            try:
-                self.process.terminate()
-                self.process.wait(timeout=2)
-            except Exception:
-                self.process.kill()
-            self.process = None
-
-    def is_running(self) -> bool:
-        return self.process is not None and self.process.poll() is None
-
-    def read(self) -> Tuple[bool, Optional[np.ndarray]]:
-        if not self.is_running():
-            return False, None
-
-        stdout = self.process.stdout
-        if stdout is None:
-            return False, None
-
-        frame_data = stdout.read(self.frame_size)
-        if len(frame_data) != self.frame_size:
-            return False, None
-
-        frame = np.frombuffer(frame_data, np.uint8)
-        frame = frame.reshape((self.frame_height, self.frame_width, 3))
-        return True, frame
-
-
 class CameraService:
     """Main camera service for processing video stream"""
 
@@ -825,8 +748,6 @@ class CameraService:
         self.frame_count = 0
         self.latest_frame = None  # Store latest frame for streaming
         self.frame_lock = threading.Lock()
-        self.use_ffmpeg = self.config.VIDEO_INPUT_METHOD == 'ffmpeg'
-        self.ffmpeg_reader: Optional[FFmpegStreamReader] = None
 
         # Create debug image directory if enabled
         if self.config.SAVE_DEBUG_IMAGES:
@@ -878,18 +799,6 @@ class CameraService:
 
     def connect_camera(self) -> Optional[cv2.VideoCapture]:
         """Connect to Hikvision camera via RTSP with optimized settings"""
-        if self.use_ffmpeg:
-            logger.info("Using FFmpeg subprocess for video capture")
-            if self.ffmpeg_reader is None:
-                self.ffmpeg_reader = FFmpegStreamReader(self.config)
-            try:
-                self.ffmpeg_reader.start()
-                return None
-            except Exception as e:
-                logger.error(f"Failed to start FFmpeg reader: {e}")
-                self.ffmpeg_reader.stop()
-                return None
-
         logger.info(f"Connecting to camera: {self.config.CAMERA_NAME}")
         logger.info(f"RTSP URL: {self.config.CAMERA_RTSP_URL}")
         logger.info(f"RTSP Transport: {self.config.RTSP_TRANSPORT}")
@@ -1137,51 +1046,36 @@ class CameraService:
 
         while self.running:
             try:
-                if self.use_ffmpeg:
-                    if self.ffmpeg_reader is None or not self.ffmpeg_reader.is_running():
-                        self.connect_camera()
-                        if self.ffmpeg_reader is None or not self.ffmpeg_reader.is_running():
-                            logger.error(f"FFmpeg reader unavailable, retrying in {self.config.RECONNECT_DELAY}s")
-                            time.sleep(self.config.RECONNECT_DELAY)
-                            continue
-
-                    ret, frame = self.ffmpeg_reader.read()
-                    if not ret or frame is None:
-                        logger.warning("Failed to read frame from FFmpeg, restarting stream")
-                        if self.ffmpeg_reader:
-                            self.ffmpeg_reader.stop()
-                        time.sleep(self.config.RECONNECT_DELAY)
-                        continue
-                else:
-                    # Connect/reconnect to camera
-                    if cap is None or not cap.isOpened():
-                        cap = self.connect_camera()
-                        if cap is None or not cap.isOpened():
-                            logger.error(f"Retrying connection in {self.config.RECONNECT_DELAY}s...")
-                            time.sleep(self.config.RECONNECT_DELAY)
-                            continue
-
-                    # Read frame
-                    ret, frame = cap.read()
-
-                    if not ret:
-                        empty_frame_streak += 1
-                        logger.warning("Empty frame received from camera (streak: %s)", empty_frame_streak)
-
-                        if empty_frame_streak <= self.config.EMPTY_FRAME_MAX_RETRIES:
-                            for _ in range(3):
-                                cap.grab()
-                            time.sleep(self.config.EMPTY_FRAME_RETRY_DELAY_MS / 1000.0)
-                            continue
-
-                        logger.error("Repeated empty frames, reconnecting to camera")
-                        empty_frame_streak = 0
-                        cap.release()
-                        cap = None
+                # Connect/reconnect to camera
+                if cap is None or not cap.isOpened():
+                    cap = self.connect_camera()
+                    if cap is None:
+                        logger.error(f"Retrying connection in {self.config.RECONNECT_DELAY}s...")
                         time.sleep(self.config.RECONNECT_DELAY)
                         continue
 
+                # Read frame
+                ret, frame = cap.read()
+
+                if not ret:
+                    empty_frame_streak += 1
+                    logger.warning("Empty frame received from camera (streak: %s)", empty_frame_streak)
+
+                    if empty_frame_streak <= self.config.EMPTY_FRAME_MAX_RETRIES:
+                        # Try to flush decoder buffer before reconnecting
+                        for _ in range(3):
+                            cap.grab()
+                        time.sleep(self.config.EMPTY_FRAME_RETRY_DELAY_MS / 1000.0)
+                        continue
+
+                    logger.error("Repeated empty frames, reconnecting to camera")
                     empty_frame_streak = 0
+                    cap.release()
+                    cap = None
+                    time.sleep(self.config.RECONNECT_DELAY)
+                    continue
+
+                empty_frame_streak = 0
                 self.frame_count += 1
 
                 # Process every Nth frame
@@ -1212,8 +1106,6 @@ class CameraService:
         # Cleanup
         if cap:
             cap.release()
-        if self.ffmpeg_reader:
-            self.ffmpeg_reader.stop()
         cv2.destroyAllWindows()
         self.db_manager.close()
         logger.info("Camera service stopped")

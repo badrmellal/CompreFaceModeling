@@ -10,10 +10,13 @@ const CONFIG = {
     IMAGES_PER_PAGE: 20,
 };
 
+const STREAM_TAB_NAME = 'live';
+const STREAM_REFRESH_INTERVAL = 3000; // 3 seconds for live stream tab
+
 // ==================== STATE ====================
 let refreshTimer = null;
 let countdownTimer = null;
-let countdownSeconds = 10;
+let countdownSeconds = STREAM_REFRESH_INTERVAL / 1000;
 let currentTab = 'live';
 let currentImagePage = 1;
 let totalImagePages = 1;
@@ -27,6 +30,7 @@ let galleryFilters = {
     sub_department: '',
     status: ''
 };
+let autoRefreshChangeListenerAttached = false;
 
 // ==================== INITIALIZATION ====================
 document.addEventListener('DOMContentLoaded', function() {
@@ -95,12 +99,16 @@ function switchTab(tabName) {
 
     // Load tab-specific data
     loadTabData(tabName);
+
+    // Re-evaluate auto refresh when switching tabs so only the stream tab refreshes
+    startAutoRefresh();
 }
 
 function loadTabData(tabName) {
     switch(tabName) {
         case 'live':
             refreshLiveMonitor();
+            refreshLiveStreamSource(true);
             break;
         case 'attendance':
             refreshAttendance();
@@ -399,27 +407,32 @@ function closeImageModal() {
 
 // ==================== VIDEO STREAM ====================
 function initializeVideoStream() {
+    refreshLiveStreamSource(false);
+}
+
+function refreshLiveStreamSource(forceReload = false) {
     const videoStream = document.getElementById('liveVideoStream');
     const videoPlaceholder = document.getElementById('videoPlaceholder');
 
-    if (!videoStream) return;
+    if (!videoStream || !videoPlaceholder) return;
 
-    // Try to load the stream
-    videoStream.src = CONFIG.VIDEO_STREAM_URL;
+    const cacheBust = forceReload ? `${CONFIG.VIDEO_STREAM_URL.includes('?') ? '&' : '?'}_=${Date.now()}` : '';
+    const streamUrl = `${CONFIG.VIDEO_STREAM_URL}${cacheBust}`;
 
+    // Attach handlers on every refresh to ensure the latest state is reflected
     videoStream.onload = function() {
-        // Stream loaded successfully
         videoPlaceholder.style.display = 'none';
         videoStream.style.display = 'block';
         console.log('Video stream connected successfully');
     };
 
     videoStream.onerror = function() {
-        // Stream failed to load - keep placeholder visible
         videoPlaceholder.style.display = 'flex';
         videoStream.style.display = 'none';
         console.log('Video stream not available');
     };
+
+    videoStream.src = streamUrl;
 }
 
 // ==================== CAMERA STATUS ====================
@@ -760,6 +773,14 @@ function drawChart(data) {
 // ==================== AUTO-REFRESH ====================
 function startAutoRefresh() {
     const checkbox = document.getElementById('autoRefresh');
+    const countdownEl = document.getElementById('refreshCountdown');
+
+    if (!checkbox || !countdownEl) return;
+
+    if (!autoRefreshChangeListenerAttached) {
+        checkbox.addEventListener('change', startAutoRefresh);
+        autoRefreshChangeListenerAttached = true;
+    }
 
     if (refreshTimer) {
         clearInterval(refreshTimer);
@@ -771,28 +792,38 @@ function startAutoRefresh() {
         countdownTimer = null;
     }
 
-    if (checkbox.checked) {
-        // Start refresh timer
-        refreshTimer = setInterval(() => {
-            loadAllData();
-            countdownSeconds = CONFIG.REFRESH_INTERVAL / 1000;
-        }, CONFIG.REFRESH_INTERVAL);
+    const shouldAutoRefresh = checkbox.checked && currentTab === STREAM_TAB_NAME;
 
-        // Start countdown timer
-        countdownSeconds = CONFIG.REFRESH_INTERVAL / 1000;
+    if (shouldAutoRefresh) {
+        const intervalSeconds = STREAM_REFRESH_INTERVAL / 1000;
+        countdownSeconds = intervalSeconds;
+        updateRefreshCountdown(countdownSeconds, countdownEl);
+
+        refreshTimer = setInterval(() => {
+            if (currentTab !== STREAM_TAB_NAME) {
+                startAutoRefresh();
+                return;
+            }
+
+            refreshLiveMonitor();
+            refreshLiveStreamSource(true);
+
+            countdownSeconds = intervalSeconds;
+            updateRefreshCountdown(countdownSeconds, countdownEl);
+        }, STREAM_REFRESH_INTERVAL);
+
         countdownTimer = setInterval(() => {
             countdownSeconds--;
-            document.getElementById('refreshCountdown').textContent = `(${countdownSeconds}s)`;
 
             if (countdownSeconds <= 0) {
-                countdownSeconds = CONFIG.REFRESH_INTERVAL / 1000;
+                countdownSeconds = intervalSeconds;
             }
+
+            updateRefreshCountdown(countdownSeconds, countdownEl);
         }, CONFIG.COUNTDOWN_INTERVAL);
     } else {
-        document.getElementById('refreshCountdown').textContent = '';
+        countdownEl.textContent = '';
     }
-
-    checkbox.addEventListener('change', startAutoRefresh);
 }
 
 // ==================== UTILITY FUNCTIONS ====================
@@ -843,6 +874,12 @@ function convertToCSV(data, fields) {
     });
 
     return [header, ...rows].join('\n');
+}
+
+function updateRefreshCountdown(seconds, element) {
+    if (element) {
+        element.textContent = `(${seconds}s)`;
+    }
 }
 
 function downloadCSV(csv, filename) {

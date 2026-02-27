@@ -104,6 +104,11 @@ class Config:
     # Streaming Configuration
     ENABLE_STREAMING = os.getenv('ENABLE_STREAMING', 'true').lower() == 'true'
 
+    # Raspberry Pi Door Control Configuration
+    DOOR_CONTROL_ENABLED = os.getenv('DOOR_CONTROL_ENABLED', 'false').lower() == 'true'
+    DOOR_CONTROL_URL = os.getenv('DOOR_CONTROL_URL', 'http://192.168.1.250:5000/controle')
+    DOOR_CONTROL_TIMEOUT = int(os.getenv('DOOR_CONTROL_TIMEOUT', '2'))  # HTTP request timeout in seconds
+
 class DatabaseManager:
     """Manages database connections and access logging"""
 
@@ -321,6 +326,108 @@ class AlertManager:
             logger.info(f"Email alert would be sent to: {self.config.ALERT_EMAIL}")
 
         return True
+
+
+class DoorController:
+    """Manages door control signals to Raspberry Pi"""
+
+    def __init__(self, config: Config):
+        self.config = config
+        self.last_signal_time = {}
+        self.cooldown_seconds = 2  # Prevent spamming door signals
+        
+        # Log door control status at startup
+        if self.config.DOOR_CONTROL_ENABLED:
+            logger.info(f"🚪 Door Control ENABLED - will send signals to {self.config.DOOR_CONTROL_URL}")
+        else:
+            logger.info("🚪 Door Control DISABLED - no signals will be sent to Raspberry Pi")
+
+    def should_send_signal(self, track_id: str) -> bool:
+        """Check if enough time has passed since last door signal for this track"""
+        now = time.time()
+        last_time = self.last_signal_time.get(track_id, 0)
+
+        if now - last_time > self.cooldown_seconds:
+            self.last_signal_time[track_id] = now
+            return True
+        return False
+
+    def send_door_open_signal(self, subject_name: str, track_id: str) -> bool:
+        """Send HTTP signal to Raspberry Pi to open door"""
+        
+        if not self.config.DOOR_CONTROL_ENABLED:
+            logger.info(f"🚪 Door control disabled - skipping signal for {subject_name}")
+            return False
+
+        # Prevent duplicate signals for same track
+        if not self.should_send_signal(track_id):
+            logger.info(f"🚪 Door signal cooldown active for track {track_id}")
+            return False
+
+        try:
+            logger.info(f"🚪 Sending door open signal for {subject_name} (track: {track_id})")
+            
+            response = requests.post(
+                self.config.DOOR_CONTROL_URL,
+                json={"autorise": True},
+                timeout=self.config.DOOR_CONTROL_TIMEOUT
+            )
+            
+            if response.status_code == 200:
+                logger.info(f"✓ Door signal sent successfully to {self.config.DOOR_CONTROL_URL}")
+                return True
+            else:
+                logger.error(f"✗ Door signal failed: HTTP {response.status_code}")
+                return False
+                
+        except requests.exceptions.Timeout:
+            logger.error(f"✗ Door signal timeout after {self.config.DOOR_CONTROL_TIMEOUT}s")
+            return False
+        except requests.exceptions.ConnectionError:
+            logger.error(f"✗ Cannot connect to door controller at {self.config.DOOR_CONTROL_URL}")
+            return False
+        except Exception as e:
+            logger.error(f"✗ Door signal error: {e}")
+            return False
+
+    def send_door_deny_signal(self, subject_name: str, track_id: str) -> bool:
+        """Send HTTP signal to Raspberry Pi to deny access (unauthorized face)"""
+        
+        if not self.config.DOOR_CONTROL_ENABLED:
+            logger.info(f"🚪 Door control disabled - skipping deny signal")
+            return False
+
+        # Prevent duplicate signals for same track
+        if not self.should_send_signal(track_id):
+            logger.info(f"🚪 Door signal cooldown active for track {track_id}")
+            return False
+
+        try:
+            person_info = subject_name or "Unknown"
+            logger.info(f"🚪 Sending door DENY signal for {person_info} (track: {track_id})")
+            
+            response = requests.post(
+                self.config.DOOR_CONTROL_URL,
+                json={"autorise": False},
+                timeout=self.config.DOOR_CONTROL_TIMEOUT
+            )
+            
+            if response.status_code == 200:
+                logger.info(f"✓ Door DENY signal sent successfully to {self.config.DOOR_CONTROL_URL}")
+                return True
+            else:
+                logger.error(f"✗ Door deny signal failed: HTTP {response.status_code}")
+                return False
+                
+        except requests.exceptions.Timeout:
+            logger.error(f"✗ Door deny signal timeout after {self.config.DOOR_CONTROL_TIMEOUT}s")
+            return False
+        except requests.exceptions.ConnectionError:
+            logger.error(f"✗ Cannot connect to door controller at {self.config.DOOR_CONTROL_URL}")
+            return False
+        except Exception as e:
+            logger.error(f"✗ Door deny signal error: {e}")
+            return False
 
 
 class FaceTracker:
@@ -742,6 +849,7 @@ class CameraService:
         self.config = config
         self.db_manager = DatabaseManager(config)
         self.alert_manager = AlertManager(config)
+        self.door_controller = DoorController(config)  # Initialize door controller
         self.recognition_service = FaceRecognitionService(config, self.db_manager)
         self.face_tracker = FaceTracker(config, config.CAMERA_NAME)  # Initialize face tracker
         self.running = False
@@ -998,6 +1106,9 @@ class CameraService:
                 # Mark track as logged
                 self.face_tracker.mark_track_logged(track_id)
                 logger.info(f"✓ Logged attendance for {face['subject_name']} (track: {track_id})")
+                
+                # Send door open signal to Raspberry Pi
+                self.door_controller.send_door_open_signal(face['subject_name'], track_id)
             else:
                 logger.debug(f"⏭ Skipping log for {face['subject_name']} (track: {track_id}) - already logged")
 
@@ -1067,6 +1178,9 @@ class CameraService:
                             self.db_manager.connection.commit()
                     except Exception as e:
                         logger.error(f"Failed to update alert status: {e}")
+
+                # Send door deny signal to Raspberry Pi (unauthorized face)
+                self.door_controller.send_door_deny_signal(face.get('subject_name'), track_id)
 
                 # Mark track as logged
                 self.face_tracker.mark_track_logged(track_id)

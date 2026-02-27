@@ -134,8 +134,8 @@ services:
       - FLASK_DEBUG=false
       - CAMERA_LOGS_PATH=/app/camera_logs
       - COMPREFACE_API_URL=http://compreface-api:8080
-      - COMPREFACE_API_KEY=7d7b2220-e198-407f-bd01-8ea7afa81172
-      - CAMERA_RTSP_URL=rtsp://admin:Admin123@192.168.1.73:554/Streaming/Channels/101
+      - COMPREFACE_API_KEY=b5761165-97cf-41a2-a96c-e041f2215acd
+      - CAMERA_RTSP_URL=rtsp://admin:Admin123@192.168.1.64:554/Streaming/Channels/101
       - CAMERA_NAME=1BIP Portail Principal
       - CAMERA_LOCATION=1BIP
     volumes:

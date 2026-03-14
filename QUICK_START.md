@@ -281,6 +281,39 @@ To add more cameras:
    docker-compose up -d camera-service-back-gate
    ```
 
+### Two-Camera Launch (Ready-to-use)
+
+This repository now includes a ready two-camera override file.
+
+1. Configure camera 1 in:
+   ```bash
+   camera-service/config/camera_config.env
+   ```
+
+2. Configure camera 2 in:
+   ```bash
+   camera-service/config/camera2_overrides.env
+   ```
+
+3. Start all services with 2 cameras:
+   ```bash
+   docker compose -f docker-compose.yml -f docker-compose.2cams.yml up -d
+   ```
+
+4. (Windows + NVIDIA GPU) Start with GPU acceleration enabled for CompreFace core:
+   ```bash
+   docker compose -f docker-compose.yml -f docker-compose.2cams.yml -f docker-compose.windows.gpu.yml up -d
+   ```
+
+5. Check both camera workers are up:
+   ```bash
+   docker compose ps camera-service camera-service-2
+   ```
+
+6. Open live streams:
+   - Porte Gauche: `http://localhost:5001/stream/video.mjpeg`
+   - Porte Droite: `http://localhost:5002/stream/video.mjpeg`
+
 ---
 
 ## 🔍 Monitoring & Logs

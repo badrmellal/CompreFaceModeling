@@ -108,6 +108,7 @@ class Config:
     DOOR_CONTROL_ENABLED = os.getenv('DOOR_CONTROL_ENABLED', 'false').lower() == 'true'
     DOOR_CONTROL_URL = os.getenv('DOOR_CONTROL_URL', 'http://192.168.1.250:5000/controle')
     DOOR_CONTROL_TIMEOUT = int(os.getenv('DOOR_CONTROL_TIMEOUT', '2'))  # HTTP request timeout in seconds
+    DOOR_ID = os.getenv('DOOR_ID', CAMERA_NAME)
 
 class DatabaseManager:
     """Manages database connections and access logging"""
@@ -369,7 +370,14 @@ class DoorController:
             
             response = requests.post(
                 self.config.DOOR_CONTROL_URL,
-                json={"autorise": True},
+                json={
+                    "autorise": True,
+                    "door_id": self.config.DOOR_ID,
+                    "camera_name": self.config.CAMERA_NAME,
+                    "camera_location": self.config.CAMERA_LOCATION,
+                    "subject_name": subject_name,
+                    "track_id": track_id
+                },
                 timeout=self.config.DOOR_CONTROL_TIMEOUT
             )
             
@@ -408,7 +416,14 @@ class DoorController:
             
             response = requests.post(
                 self.config.DOOR_CONTROL_URL,
-                json={"autorise": False},
+                json={
+                    "autorise": False,
+                    "door_id": self.config.DOOR_ID,
+                    "camera_name": self.config.CAMERA_NAME,
+                    "camera_location": self.config.CAMERA_LOCATION,
+                    "subject_name": subject_name,
+                    "track_id": track_id
+                },
                 timeout=self.config.DOOR_CONTROL_TIMEOUT
             )
             

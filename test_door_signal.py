@@ -1,25 +1,35 @@
 #!/usr/bin/env python3
 """
-Test script to verify door control signal works
+Test script to verify door control signal works for both doors
 """
 import requests
-import sys
+import os
 
 DOOR_URL = "http://192.168.1.250:5000/controle"
+LEFT_DOOR_ID = os.getenv("LEFT_DOOR_ID", "EMB_PORTE_GAUCHE")
+RIGHT_DOOR_ID = os.getenv("RIGHT_DOOR_ID", "EMB_PORTE_DROITE")
 
-def test_door_signal(autorise: bool):
-    """Test door control signal with specified authorization status"""
+def test_door_signal(autorise: bool, door_id: str):
+    """Test door control signal with specified authorization status and door id"""
     signal_type = "OPEN (authorized)" if autorise else "DENY (unauthorized)"
     print(f"\n{'='*50}")
-    print(f"Testing door {signal_type} signal")
+    print(f"Testing {door_id} -> {signal_type} signal")
     print(f"URL: {DOOR_URL}")
-    print(f"Sending: {{'autorise': {autorise}}}")
+    payload = {
+        "autorise": autorise,
+        "door_id": door_id,
+        "camera_name": f"Test-{door_id}",
+        "camera_location": "EMB",
+        "subject_name": "TEST_USER",
+        "track_id": "test-track-001"
+    }
+    print(f"Sending: {payload}")
     print('='*50)
 
     try:
         response = requests.post(
             DOOR_URL,
-            json={"autorise": autorise},
+            json=payload,
             timeout=5
         )
         
@@ -51,10 +61,14 @@ def test_door_signal(autorise: bool):
 if __name__ == "__main__":
     print("Door Control Signal Test")
     print("========================")
-    
-    # Test both signals
-    print("\n[1/2] Testing AUTHORIZED signal (autorise=True)...")
-    test_door_signal(True)
-    
-    print("\n[2/2] Testing UNAUTHORIZED signal (autorise=False)...")
-    test_door_signal(False)
+
+    tests = [
+        (LEFT_DOOR_ID, True),
+        (LEFT_DOOR_ID, False),
+        (RIGHT_DOOR_ID, True),
+        (RIGHT_DOOR_ID, False),
+    ]
+
+    for index, (door_id, autorise) in enumerate(tests, start=1):
+        print(f"\n[{index}/{len(tests)}] Testing {door_id} with autorise={autorise}...")
+        test_door_signal(autorise, door_id)

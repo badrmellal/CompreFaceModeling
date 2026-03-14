@@ -6,7 +6,8 @@ const CONFIG = {
     API_BASE_URL: '',  // Same origin
     REFRESH_INTERVAL: 30000,  // 30 seconds (auto-refresh interval)
     COUNTDOWN_INTERVAL: 1000, // 1 second
-    VIDEO_STREAM_URL: '',  // Will be set dynamically based on current host
+    VIDEO_STREAM_URL_LEFT: '',
+    VIDEO_STREAM_URL_RIGHT: '',
     IMAGES_PER_PAGE: 20,
 };
 
@@ -38,7 +39,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Set video stream URL based on current host
     const currentHost = window.location.hostname;
-    CONFIG.VIDEO_STREAM_URL = `http://${currentHost}:5001/stream/video.mjpeg`;
+    CONFIG.VIDEO_STREAM_URL_LEFT = `http://${currentHost}:5001/stream/video.mjpeg`;
+    CONFIG.VIDEO_STREAM_URL_RIGHT = `http://${currentHost}:5002/stream/video.mjpeg`;
 
     // Initialize tabs
     initializeTabs();
@@ -108,7 +110,7 @@ function loadTabData(tabName) {
     switch(tabName) {
         case 'live':
             refreshLiveMonitor();
-            refreshLiveStreamSource(true);
+            refreshLiveStreamSources(true);
             break;
         case 'attendance':
             refreshAttendance();
@@ -407,32 +409,45 @@ function closeImageModal() {
 
 // ==================== VIDEO STREAM ====================
 function initializeVideoStream() {
-    refreshLiveStreamSource(false);
+    refreshLiveStreamSources(false);
 }
 
-function refreshLiveStreamSource(forceReload = false) {
-    const videoStream = document.getElementById('liveVideoStream');
-    const videoPlaceholder = document.getElementById('videoPlaceholder');
+function refreshSingleStream({ streamElementId, placeholderElementId, streamUrlBase, forceReload }) {
+    const videoStream = document.getElementById(streamElementId);
+    const videoPlaceholder = document.getElementById(placeholderElementId);
 
-    if (!videoStream || !videoPlaceholder) return;
+    if (!videoStream || !videoPlaceholder || !streamUrlBase) return;
 
-    const cacheBust = forceReload ? `${CONFIG.VIDEO_STREAM_URL.includes('?') ? '&' : '?'}_=${Date.now()}` : '';
-    const streamUrl = `${CONFIG.VIDEO_STREAM_URL}${cacheBust}`;
+    const cacheBust = forceReload ? `${streamUrlBase.includes('?') ? '&' : '?'}_=${Date.now()}` : '';
+    const streamUrl = `${streamUrlBase}${cacheBust}`;
 
-    // Attach handlers on every refresh to ensure the latest state is reflected
     videoStream.onload = function() {
         videoPlaceholder.style.display = 'none';
         videoStream.style.display = 'block';
-        console.log('Video stream connected successfully');
     };
 
     videoStream.onerror = function() {
         videoPlaceholder.style.display = 'flex';
         videoStream.style.display = 'none';
-        console.log('Video stream not available');
     };
 
     videoStream.src = streamUrl;
+}
+
+function refreshLiveStreamSources(forceReload = false) {
+    refreshSingleStream({
+        streamElementId: 'liveVideoStreamLeft',
+        placeholderElementId: 'videoPlaceholderLeft',
+        streamUrlBase: CONFIG.VIDEO_STREAM_URL_LEFT,
+        forceReload
+    });
+
+    refreshSingleStream({
+        streamElementId: 'liveVideoStreamRight',
+        placeholderElementId: 'videoPlaceholderRight',
+        streamUrlBase: CONFIG.VIDEO_STREAM_URL_RIGHT,
+        forceReload
+    });
 }
 
 // ==================== CAMERA STATUS ====================
@@ -806,7 +821,7 @@ function startAutoRefresh() {
             }
 
             refreshLiveMonitor();
-            refreshLiveStreamSource(true);
+            refreshLiveStreamSources(true);
 
             countdownSeconds = intervalSeconds;
             updateRefreshCountdown(countdownSeconds, countdownEl);

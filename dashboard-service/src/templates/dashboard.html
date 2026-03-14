@@ -162,19 +162,33 @@
 
             <!-- Section Flux Vidéo en Direct -->
             <div class="live-stream-section">
-                <h3>📹 Flux Vidéo en Direct</h3>
-                <div class="video-container" id="liveVideoContainer">
-                    <div class="video-placeholder" id="videoPlaceholder">
-                        <div style="text-align: center;">
-                            <div style="font-size: 3rem; margin-bottom: 1rem;">📹</div>
-                            <div>Flux vidéo en direct non disponible</div>
-                            <div style="font-size: 0.9rem; margin-top: 0.5rem; color: #666;">
-                                Le streaming en direct sera disponible prochainement
+                <h3>📹 Flux Vidéo en Direct - EMB</h3>
+                <div class="video-grid">
+                    <div class="video-panel" id="liveVideoContainerLeft">
+                        <div class="video-panel-title">Porte Gauche</div>
+                        <div class="video-container">
+                            <div class="video-placeholder" id="videoPlaceholderLeft">
+                                <div style="text-align: center;">
+                                    <div style="font-size: 3rem; margin-bottom: 1rem;">📹</div>
+                                    <div>Flux vidéo porte gauche non disponible</div>
+                                </div>
                             </div>
+                            <img id="liveVideoStreamLeft" class="video-stream" style="display: none;" alt="Flux vidéo porte gauche" />
                         </div>
                     </div>
-                    <!-- L'image MJPEG sera injectée ici par JavaScript si disponible -->
-                    <img id="liveVideoStream" class="video-stream" style="display: none;" alt="Flux vidéo en direct" />
+
+                    <div class="video-panel" id="liveVideoContainerRight">
+                        <div class="video-panel-title">Porte Droite</div>
+                        <div class="video-container">
+                            <div class="video-placeholder" id="videoPlaceholderRight">
+                                <div style="text-align: center;">
+                                    <div style="font-size: 3rem; margin-bottom: 1rem;">📹</div>
+                                    <div>Flux vidéo porte droite non disponible</div>
+                                </div>
+                            </div>
+                            <img id="liveVideoStreamRight" class="video-stream" style="display: none;" alt="Flux vidéo porte droite" />
+                        </div>
+                    </div>
                 </div>
             </div>
 

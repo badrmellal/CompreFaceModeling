@@ -1,0 +1,19 @@
+services:
+  camera-service-2:
+    build:
+      context: ./camera-service
+      dockerfile: Dockerfile
+    container_name: "1bip-camera-service-2"
+    restart: unless-stopped
+    depends_on:
+      - compreface-api
+      - compreface-postgres-db
+    env_file:
+      - ./camera-service/config/camera_config.env
+      - ./camera-service/config/camera2_overrides.env
+    volumes:
+      - ./camera-service/logs:/app/logs
+    ports:
+      - "5002:5001"
+    networks:
+      - default

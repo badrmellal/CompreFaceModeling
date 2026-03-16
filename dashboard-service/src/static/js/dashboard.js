@@ -1422,6 +1422,9 @@ function editPersonnel(subject, department, subDepartment, rank) {
         if (photoGroup) {
             photoGroup.style.display = 'none';
         }
+        
+        // Disable html5 validation for photos since we are editing
+        document.getElementById('personnelPhotos').required = false;
 
         // Change submit button text
         const submitBtn = form.querySelector('button[type="submit"]');
@@ -1467,6 +1470,9 @@ function cancelEdit() {
     if (photoGroup) {
         photoGroup.style.display = 'block';
     }
+    
+    // Re-enable html5 validation for photos
+    document.getElementById('personnelPhotos').required = true;
 
     // Reset submit button
     const submitBtn = form.querySelector('button[type="submit"]');

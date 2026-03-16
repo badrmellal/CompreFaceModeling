@@ -39,8 +39,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Set video stream URL based on current host
     const currentHost = window.location.hostname;
-    CONFIG.VIDEO_STREAM_URL_LEFT = `http://${currentHost}:5001/stream/video.mjpeg`;
-    CONFIG.VIDEO_STREAM_URL_RIGHT = `http://${currentHost}:5002/stream/video.mjpeg`;
+    CONFIG.VIDEO_STREAM_URL_LEFT = `http://194.168.2.138:5001/stream/video.mjpeg`;
+    CONFIG.VIDEO_STREAM_URL_RIGHT = `http://194.168.2.138:5002/stream/video.mjpeg`;
 
     // Initialize tabs
     initializeTabs();

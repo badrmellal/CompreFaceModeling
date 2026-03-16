@@ -134,8 +134,8 @@ services:
       - FLASK_DEBUG=false
       - CAMERA_LOGS_PATH=/app/camera_logs
       - COMPREFACE_API_URL=http://compreface-api:8080
-      - COMPREFACE_API_KEY=b5761165-97cf-41a2-a96c-e041f2215acd
-      - CAMERA_RTSP_URL=rtsp://admin:Admin123@192.168.1.64:554/Streaming/Channels/101
+      - COMPREFACE_API_KEY=fe1a4c67-1c6b-49d1-b465-9af4f09ed5ab
+      - CAMERA_RTSP_URL=rtsp://admin:Admin123@192.168.1.240:554/Streaming/Channels/101
       - CAMERA_NAME=EMB - Porte Gauche
       - CAMERA_LOCATION=EMB - Porte Gauche
     volumes:

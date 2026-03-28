@@ -1,20 +1,22 @@
 <!DOCTYPE html>
 <html lang="fr" dir="ltr">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🪂 1BIP - Troupes Aéroportées | Contrôle d'Accès</title>
+    <title>🪂 1BIP | Contrôle d'Accès</title>
     <meta name="description" content="Système de Contrôle d'Accès Biométrique Militaire 1BIP">
     <link rel="stylesheet" href="/static/css/dashboard.css">
 </head>
+
 <body>
     <!-- En-tête -->
     <header class="header">
         <div class="container">
             <div class="header-content">
                 <div class="header-title">
-                    <h1>🪂 1BIP - 1ère Brigade d'Infanterie Parachutiste </h1>
-                    <h2 class="subtitle">Système de Contrôle d'Accès Biométrique avec reconnaissance faciale</h2>
+                    <h1>🪂 1°Brigade d'Infanterie Parachutiste </h1>
+                    <h2 class="subtitle">Système de Contrôle d'Accès avec reconnaissance faciale</h2>
                 </div>
                 <div class="header-info">
                     <span id="currentTime" class="time">--:--:--</span>
@@ -173,7 +175,8 @@
                                     <div>Flux vidéo porte gauche non disponible</div>
                                 </div>
                             </div>
-                            <img id="liveVideoStreamLeft" class="video-stream" style="display: none;" alt="Flux vidéo porte gauche" />
+                            <img id="liveVideoStreamLeft" class="video-stream" style="display: none;"
+                                alt="Flux vidéo porte gauche" />
                         </div>
                     </div>
 
@@ -186,7 +189,8 @@
                                     <div>Flux vidéo porte droite non disponible</div>
                                 </div>
                             </div>
-                            <img id="liveVideoStreamRight" class="video-stream" style="display: none;" alt="Flux vidéo porte droite" />
+                            <img id="liveVideoStreamRight" class="video-stream" style="display: none;"
+                                alt="Flux vidéo porte droite" />
                         </div>
                     </div>
                 </div>
@@ -258,14 +262,13 @@
                     <div class="form-row">
                         <div class="form-group">
                             <label for="personnelName">Nom Complet *</label>
-                            <input type="text" id="personnelName" name="name" required
-                                   placeholder="Ex: Mellal Badr">
+                            <input type="text" id="personnelName" name="name" required placeholder="Ex: Mellal Badr">
                         </div>
 
                         <div class="form-group">
                             <label for="personnelRank">Grade / Rang</label>
                             <input type="text" id="personnelRank" name="rank"
-                                   placeholder="Ex: Lieutenant, Sergent, etc.">
+                                placeholder="Ex: Lieutenant, Sergent, etc.">
                         </div>
                     </div>
 
@@ -289,7 +292,7 @@
                         <div class="form-group">
                             <label for="personnelSubDepartment">Compagnie / Section</label>
                             <input type="text" id="personnelSubDepartment" name="sub_department"
-                                   placeholder="Ex: Compagnie 1, Section Commandement, etc.">
+                                placeholder="Ex: Compagnie 1, Section Commandement, etc.">
                         </div>
                     </div>
 
@@ -297,8 +300,7 @@
                         <label for="personnelPhotos">Photos du Visage * (Minimum 3 photos)</label>
                         <div class="file-upload-wrapper">
                             <input type="file" id="personnelPhotos" name="photos"
-                                   accept="image/jpeg,image/jpg,image/png"
-                                   multiple required>
+                                accept="image/jpeg,image/jpg,image/png" multiple required>
                             <div class="file-upload-info">
                                 📸 Sélectionnez au moins 3 photos claires du visage (différents angles)
                             </div>
@@ -325,7 +327,7 @@
                 <div class="controls">
                     <button class="btn btn-primary" onclick="refreshPersonnelList()">🔄 Actualiser</button>
                     <input type="text" id="searchPersonnel" placeholder="🔍 Rechercher personnel..."
-                           onkeyup="filterPersonnelList()">
+                        onkeyup="filterPersonnelList()">
                 </div>
 
                 <div class="table-container">
@@ -399,7 +401,8 @@
             <div class="gallery-filters">
                 <div class="filter-group">
                     <label>🔍 Filtrer par Nom:</label>
-                    <input type="text" id="filterName" placeholder="Nom de la personne..." onkeyup="applyGalleryFilters()">
+                    <input type="text" id="filterName" placeholder="Nom de la personne..."
+                        onkeyup="applyGalleryFilters()">
                 </div>
                 <div class="filter-group">
                     <label>🪂 Bataillon / Unité:</label>
@@ -492,7 +495,8 @@
 
                     <div class="filter-actions">
                         <button class="btn btn-primary" onclick="generateReport()">📊 Générer Rapport</button>
-                        <button class="btn btn-secondary" onclick="resetReportFilters()">🔄 Réinitialiser Filtres</button>
+                        <button class="btn btn-secondary" onclick="resetReportFilters()">🔄 Réinitialiser
+                            Filtres</button>
                         <button class="btn btn-secondary" onclick="exportReport()">📥 Exporter CSV</button>
                     </div>
                 </div>
@@ -533,7 +537,8 @@
                         </thead>
                         <tbody id="reportTable">
                             <tr>
-                                <td colspan="8" class="empty">Sélectionnez les filtres et cliquez sur "Générer Rapport"</td>
+                                <td colspan="8" class="empty">Sélectionnez les filtres et cliquez sur "Générer Rapport"
+                                </td>
                             </tr>
                         </tbody>
                     </table>
@@ -552,12 +557,14 @@
     <!-- Pied de page -->
     <footer class="footer">
         <div class="container">
-            <p>🇲🇦 © 2025 1BIP - Forces Armées Royales - Troupes Aéroportées</p>
-            <p style="font-size: 0.875rem; margin-top: 0.5rem;">1BIP - اللواء الأول للمشاة المظليين  | Dernière Mise à Jour: <span id="lastUpdate">--:--:--</span></p>
+            <p>🇲🇦 © 2026 Forces Armées Royales </p>
+            <p style="font-size: 0.875rem; margin-top: 0.5rem;">1°BIP - اللواء الأول للمشاة المظليين | Dernière Mise à
+                Jour: <span id="lastUpdate">--:--:--</span></p>
         </div>
     </footer>
 
     <!-- JavaScript -->
     <script src="/static/js/dashboard.js"></script>
 </body>
+
 </html>
